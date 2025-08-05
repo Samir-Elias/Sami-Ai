@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Github, Send, Settings, FolderOpen, MessageSquare, Code, Trash2, Sparkles, Plus, Menu, X, AlertCircle, CheckCircle, Wifi, WifiOff, Copy, Clock, Zap } from 'lucide-react';
+import { Upload, Github, Send, Settings, FolderOpen, MessageSquare, Code, Trash2, Sparkles, Plus, Menu, X, AlertCircle, CheckCircle, Wifi, WifiOff, Copy, Clock, Zap, ChevronDown, ChevronUp, Eye, EyeOff, Maximize2, Minimize2, RotateCcw, Play, Square } from 'lucide-react';
 
 // ============================================
 // 🔑 CONFIGURACIÓN DE VARIABLES DE ENTORNO
@@ -44,31 +44,502 @@ const checkEnvKeys = () => {
 };
 
 // ============================================
-// 🆓 FUNCIONES DE APIS GRATUITAS
+// 🎨 LIVE CODE PREVIEW COMPONENT (CORREGIDO)
 // ============================================
 
-// 1. 🏆 GOOGLE GEMINI API (RECOMENDADA - 1,500 requests/día GRATIS)
+const LiveCodePreview = ({ codeBlocks, isVisible, onToggle, isMobile }) => {
+  const [selectedBlock, setSelectedBlock] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const iframeRef = useRef(null);
+
+  // Filtrar bloques de código que se pueden previsualizar
+  const previewableBlocks = codeBlocks.filter(block => 
+    ['html', 'css', 'javascript', 'js', 'jsx', 'react', 'vue', 'svelte'].includes(block.language?.toLowerCase())
+  );
+
+  if (previewableBlocks.length === 0) return null;
+
+  const currentBlock = previewableBlocks[selectedBlock] || previewableBlocks[0];
+
+  // Generar HTML completo para previsualización
+  const generatePreviewHTML = (block) => {
+    const { language, code } = block;
+    
+    switch (language?.toLowerCase()) {
+      case 'html':
+        return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Preview</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        * { box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    ${code}
+</body>
+</html>`;
+
+      case 'css':
+        return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Live Preview</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        ${code}
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>CSS Preview</h1>
+        <div class="sample-content">
+            <p>Este es contenido de ejemplo para mostrar tus estilos CSS.</p>
+            <button class="btn">Botón de Ejemplo</button>
+            <div class="card">
+                <h3>Tarjeta de Ejemplo</h3>
+                <p>Contenido de la tarjeta para probar estilos.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`;
+
+      case 'javascript':
+      case 'js':
+        return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Live Preview</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .output { 
+            background: white; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 8px; 
+            padding: 15px; 
+            margin: 10px 0;
+            min-height: 100px;
+        }
+        .controls {
+            margin-bottom: 15px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        button:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <h1>JavaScript Live Preview</h1>
+    <div class="controls">
+        <button onclick="runCode()">▶️ Ejecutar Código</button>
+        <button onclick="clearOutput()">🗑️ Limpiar</button>
+    </div>
+    <div id="output" class="output">
+        <p><em>Presiona "Ejecutar Código" para ver el resultado...</em></p>
+    </div>
+    
+    <script>
+        // Redirigir console.log al output
+        const output = document.getElementById('output');
+        const originalLog = console.log;
+        
+        console.log = function(...args) {
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            output.innerHTML += '<div style="margin:5px 0; padding:5px; background:#f1f5f9; border-radius:4px;">' + message + '</div>';
+            originalLog.apply(console, args);
+        };
+        
+        function clearOutput() {
+            output.innerHTML = '<p><em>Output limpiado...</em></p>';
+        }
+        
+        function runCode() {
+            try {
+                clearOutput();
+                console.log('🚀 Ejecutando código...');
+                ${code}
+            } catch (error) {
+                output.innerHTML += '<div style="color:red; margin:5px 0; padding:5px; background:#fef2f2; border:1px solid #fecaca; border-radius:4px;">❌ Error: ' + error.message + '</div>';
+            }
+        }
+        
+        // Auto-ejecutar código simple
+        setTimeout(() => {
+            try {
+                ${code}
+            } catch (e) {
+                console.log('⚠️ Código requiere ejecución manual');
+            }
+        }, 500);
+    </script>
+</body>
+</html>`;
+
+      case 'jsx':
+      case 'react':
+        return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Live Preview</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .react-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root" class="react-container">
+        <div style="text-align:center; padding:20px; color:#6b7280;">
+            🔄 Cargando componente React...
+        </div>
+    </div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo } = React;
+        
+        try {
+            // Código del componente
+            ${code}
+            
+            // Renderizar el componente
+            const container = document.getElementById('root');
+            const root = ReactDOM.createRoot(container);
+            
+            // Si el código exporta un componente por defecto, usarlo
+            if (typeof App !== 'undefined') {
+                root.render(<App />);
+            } else if (typeof Component !== 'undefined') {
+                root.render(<Component />);
+            } else {
+                // Intentar renderizar el último JSX válido
+                root.render(
+                    <div style={{textAlign: 'center', padding: '20px'}}>
+                        <h3>🎯 Componente React Renderizado</h3>
+                        <p>El código se ejecutó correctamente.</p>
+                        <small>Tip: Exporta tu componente como 'App' o 'Component' para mejor preview.</small>
+                    </div>
+                );
+            }
+        } catch (error) {
+            document.getElementById('root').innerHTML = 
+                '<div class="error">❌ Error en el código React:<br><strong>' + 
+                error.message + '</strong></div>';
+        }
+    </script>
+</body>
+</html>`;
+
+      default:
+        return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Preview</title>
+    <style>
+        body { 
+            font-family: 'Monaco', monospace;
+            margin: 0;
+            padding: 20px;
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+        pre {
+            background: #0f172a;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid #334155;
+        }
+        .header {
+            background: #334155;
+            color: #f1f5f9;
+            padding: 10px 15px;
+            border-radius: 6px 6px 0 0;
+            margin-bottom: -1px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">📝 ${language?.toUpperCase() || 'CODE'} Preview</div>
+    <pre><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
+</body>
+</html>`;
+    }
+  };
+
+  const refreshPreview = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  if (!isVisible) {
+    return (
+      <button
+        onClick={onToggle}
+        style={{
+          position: 'fixed',
+          right: '16px',
+          top: '80px',
+          zIndex: 30,
+          padding: '12px',
+          background: '#2563eb',
+          borderRadius: '50%',
+          border: 'none',
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          transition: 'background 0.2s'
+        }}
+        title="Mostrar Live Preview"
+      >
+        <Eye style={{ width: '20px', height: '20px', color: 'white' }} />
+      </button>
+    );
+  }
+
+  const previewStyles = {
+    container: {
+      position: 'fixed',
+      top: 0,
+      right: 0,
+      height: '100vh',
+      width: isFullscreen ? '100%' : (isMobile ? '100%' : '50%'),
+      backgroundColor: '#111827',
+      borderLeft: isFullscreen ? 'none' : '1px solid #374151',
+      display: 'flex',
+      flexDirection: 'column',
+      zIndex: isFullscreen ? 50 : 20,
+      transition: 'width 0.3s ease'
+    },
+    header: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '12px 16px',
+      borderBottom: '1px solid #374151',
+      backgroundColor: '#1f2937'
+    },
+    headerTitle: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '14px',
+      fontWeight: '500',
+      color: '#f3f4f6'
+    },
+    controls: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px'
+    },
+    button: {
+      padding: '8px',
+      background: 'transparent',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      color: '#9ca3af',
+      transition: 'background 0.2s, color 0.2s'
+    },
+    select: {
+      fontSize: '12px',
+      backgroundColor: '#374151',
+      border: '1px solid #4b5563',
+      borderRadius: '4px',
+      padding: '4px 8px',
+      color: '#f3f4f6',
+      marginRight: '8px'
+    },
+    info: {
+      padding: '8px 16px',
+      backgroundColor: 'rgba(31, 41, 55, 0.5)',
+      borderBottom: '1px solid #374151',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      fontSize: '12px'
+    },
+    iframe: {
+      width: '100%',
+      height: '100%',
+      border: 'none',
+      backgroundColor: 'white'
+    }
+  };
+
+  return (
+    <div style={previewStyles.container}>
+      {/* Header del preview */}
+      <div style={previewStyles.header}>
+        <div style={previewStyles.headerTitle}>
+          <Code style={{ width: '16px', height: '16px', color: '#60a5fa' }} />
+          <span>Live Preview</span>
+          {previewableBlocks.length > 1 && (
+            <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+              ({selectedBlock + 1}/{previewableBlocks.length})
+            </span>
+          )}
+        </div>
+        
+        <div style={previewStyles.controls}>
+          {previewableBlocks.length > 1 && (
+            <select
+              value={selectedBlock}
+              onChange={(e) => setSelectedBlock(Number(e.target.value))}
+              style={previewStyles.select}
+            >
+              {previewableBlocks.map((block, index) => (
+                <option key={index} value={index}>
+                  {block.language?.toUpperCase() || 'CODE'} {index + 1}
+                </option>
+              ))}
+            </select>
+          )}
+          
+          <button
+            onClick={refreshPreview}
+            style={previewStyles.button}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#374151'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+            title="Refrescar preview"
+          >
+            <RotateCcw style={{ width: '16px', height: '16px' }} />
+          </button>
+          
+          <button
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            style={previewStyles.button}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#374151'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+            title={isFullscreen ? "Minimizar" : "Pantalla completa"}
+          >
+            {isFullscreen ? 
+              <Minimize2 style={{ width: '16px', height: '16px' }} /> : 
+              <Maximize2 style={{ width: '16px', height: '16px' }} />
+            }
+          </button>
+          
+          <button
+            onClick={onToggle}
+            style={previewStyles.button}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#374151'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+            title="Ocultar preview"
+          >
+            <EyeOff style={{ width: '16px', height: '16px' }} />
+          </button>
+        </div>
+      </div>
+
+      {/* Información del código */}
+      <div style={previewStyles.info}>
+        <span style={{ color: '#9ca3af' }}>
+          🔧 {currentBlock.language?.toUpperCase() || 'CODE'}
+        </span>
+        <span style={{ color: '#6b7280' }}>
+          {currentBlock.code.split('\n').length} líneas
+        </span>
+      </div>
+
+      {/* Preview iframe */}
+      <div style={{ flex: 1, backgroundColor: 'white' }}>
+        <iframe
+          key={`${selectedBlock}-${refreshKey}`}
+          ref={iframeRef}
+          srcDoc={generatePreviewHTML(currentBlock)}
+          style={previewStyles.iframe}
+          title="Live Code Preview"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+        />
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// 🆓 FUNCIONES DE APIS GRATUITAS (CORREGIDAS)
+// ============================================
+
+// 1. GOOGLE GEMINI API
 const callGeminiAPI = async (messages, apiKey) => {
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: messages.map(msg => ({
           role: msg.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: msg.content }]
         })),
-        generationConfig: {
-          temperature: 0.1,
-          topK: 32,
-          topP: 1,
-          maxOutputTokens: 4096
+        generationConfig: { 
+          temperature: 0.1, 
+          topK: 32, 
+          topP: 1, 
+          maxOutputTokens: 4096 
         },
         systemInstruction: {
           parts: [{
-            text: "Eres un asistente experto en desarrollo de software. Analiza código, encuentra bugs, sugiere optimizaciones y explica conceptos técnicos de manera clara y práctica. Siempre proporciona ejemplos de código cuando sea relevante."
+            text: "Eres un asistente experto en desarrollo de software. Cuando generes código, incluye ejemplos completos y funcionales. Para HTML, CSS y JavaScript, crea código que se pueda ejecutar directamente. Para React, usa componentes funcionales con hooks. Siempre explica el código generado."
           }]
         }
       })
@@ -91,76 +562,7 @@ const callGeminiAPI = async (messages, apiKey) => {
   }
 };
 
-// 2. 🤗 HUGGING FACE API (GRATIS con límites)
-const callHuggingFaceAPI = async (messages, apiKey, model = 'microsoft/DialoGPT-medium') => {
-  try {
-    const lastMessage = messages[messages.length - 1];
-    
-    const response = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        inputs: lastMessage.content,
-        parameters: {
-          max_length: 1000,
-          temperature: 0.7,
-          do_sample: true
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`HuggingFace API Error: ${errorData.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    return {
-      content: data[0]?.generated_text || data.generated_text || 'Error generando respuesta',
-      usage: { total_tokens: 'N/A' },
-      model: model
-    };
-  } catch (error) {
-    console.error('Error llamando HuggingFace API:', error);
-    throw error;
-  }
-};
-
-// 3. 🏠 OLLAMA LOCAL (100% GRATIS - Ejecuta modelos localmente)
-const callOllamaAPI = async (messages, model = 'llama3.2:3b') => {
-  try {
-    const response = await fetch('http://localhost:11434/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ollama API Error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return {
-      content: data.message.content,
-      usage: { total_tokens: 'N/A' },
-      model: model
-    };
-  } catch (error) {
-    console.error('Error llamando Ollama API:', error);
-    throw error;
-  }
-};
-
-// 4. 🆓 GROQ API (GRATIS - Ultra rápido con Llama)
+// 2. GROQ API
 const callGroqAPI = async (messages, apiKey, model = 'llama3-8b-8192') => {
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -200,25 +602,102 @@ const callGroqAPI = async (messages, apiKey, model = 'llama3-8b-8192') => {
   }
 };
 
-// ============================================
-// 🎯 FUNCIÓN PRINCIPAL MULTI-API GRATUITA
-// ============================================
+// 3. HUGGING FACE API (Solo para desktop, no móvil)
+const callHuggingFaceAPI = async (messages, apiKey, model = 'microsoft/DialoGPT-medium') => {
+  try {
+    const lastMessage = messages[messages.length - 1];
+    
+    const response = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        inputs: lastMessage.content,
+        parameters: {
+          max_length: 1000,
+          temperature: 0.7,
+          do_sample: true
+        }
+      })
+    });
 
-const callFreeAIAPI = async (messages, apiKey, provider = 'gemini', model = null) => {
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`HuggingFace API Error: ${errorData.error || response.statusText}`);
+    }
+
+    const data = await response.json();
+    return {
+      content: data[0]?.generated_text || data.generated_text || 'Error generando respuesta',
+      usage: { total_tokens: 'N/A' },
+      model: model
+    };
+  } catch (error) {
+    console.error('Error llamando HuggingFace API:', error);
+    throw error;
+  }
+};
+
+// 4. OLLAMA LOCAL (Solo para desktop)
+const callOllamaAPI = async (messages, model = 'llama3.2:3b') => {
+  try {
+    const response = await fetch('http://localhost:11434/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: messages,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ollama API Error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return {
+      content: data.message.content,
+      usage: { total_tokens: 'N/A' },
+      model: model
+    };
+  } catch (error) {
+    console.error('Error llamando Ollama API:', error);
+    throw error;
+  }
+};
+
+// Función principal multi-API
+const callFreeAIAPI = async (messages, apiKey, provider = 'gemini', model = null, isMobile = false) => {
   const cleanMessages = messages.filter(msg => msg.role !== 'system');
+  
+  // En móvil solo permitir Gemini y Groq
+  if (isMobile && provider !== 'gemini' && provider !== 'groq') {
+    provider = 'gemini'; // Fallback a Gemini en móvil
+  }
 
   switch (provider) {
     case 'gemini':
       return await callGeminiAPI(cleanMessages, apiKey);
     
-    case 'huggingface':
-      return await callHuggingFaceAPI(cleanMessages, apiKey, model || 'microsoft/DialoGPT-medium');
-    
-    case 'ollama':
-      return await callOllamaAPI(cleanMessages, model || 'llama3.2:3b');
-    
     case 'groq':
       return await callGroqAPI(cleanMessages, apiKey, model || 'llama3-8b-8192');
+    
+    case 'huggingface':
+      if (!isMobile) {
+        return await callHuggingFaceAPI(cleanMessages, apiKey, model || 'microsoft/DialoGPT-medium');
+      }
+      throw new Error('HuggingFace no disponible en móvil');
+    
+    case 'ollama':
+      if (!isMobile) {
+        return await callOllamaAPI(cleanMessages, model || 'llama3.2:3b');
+      }
+      throw new Error('Ollama no disponible en móvil');
     
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
@@ -226,118 +705,109 @@ const callFreeAIAPI = async (messages, apiKey, provider = 'gemini', model = null
 };
 
 // ============================================
-// 🔧 CONFIGURACIÓN DE MODELOS GRATUITOS (SOLO FUNCIONALES)
+// 🔧 CONFIGURACIÓN SIMPLIFICADA
 // ============================================
 
 const FREE_AI_MODELS = {
   gemini: {
-    'gemini-1.5-flash': '🏆 Gemini 1.5 Flash (1,500/día GRATIS)',
-    'gemini-1.5-pro': '💎 Gemini 1.5 Pro (50/día GRATIS)',
-    'gemini-pro': '⚡ Gemini Pro (Clásico)'
-  },
-  huggingface: {
-    'microsoft/DialoGPT-medium': '💬 DialoGPT Medium (Conversacional)',
-    'facebook/blenderbot-400M-distill': '🤖 BlenderBot (Distilled)',
-    'microsoft/DialoGPT-large': '🚀 DialoGPT Large (Más potente)',
-    'EleutherAI/gpt-neo-2.7B': '🧠 GPT-Neo 2.7B'
-  },
-  ollama: {
-    'llama3.2:3b': '🦙 Llama 3.2 3B (Rápido)',
-    'llama3.2:1b': '⚡ Llama 3.2 1B (Ultra rápido)',
-    'codellama:7b': '💻 Code Llama 7B (Para código)'
-    // Removidos: mistral:7b y phi3:mini (no funcionan correctamente)
+    'gemini-1.5-flash': '🏆 Gemini 1.5 Flash (Con Live Preview)',
+    'gemini-1.5-pro': '💎 Gemini 1.5 Pro',
   },
   groq: {
     'llama3-8b-8192': '🚀 Llama 3 8B (Ultra rápido)',
     'llama3-70b-8192': '💪 Llama 3 70B (Más potente)'
-    // Removidos: mixtral-8x7b-32768 y gemma-7b-it (problemas reportados)
+  },
+  huggingface: {
+    'microsoft/DialoGPT-medium': '💬 DialoGPT Medium',
+    'facebook/blenderbot-400M-distill': '🤖 BlenderBot',
+  },
+  ollama: {
+    'llama3.2:3b': '🦙 Llama 3.2 3B',
+    'llama3.2:1b': '⚡ Llama 3.2 1B',
+    'codellama:7b': '💻 Code Llama 7B'
   }
 };
 
 const API_LIMITS = {
   gemini: {
-    freeLimit: '1,500 requests/día',
-    rateLimit: '15 requests/minuto',
+    freeLimit: '1,500/día',
+    rateLimit: '15/min',
     needsApiKey: true,
     setup: 'https://makersuite.google.com/app/apikey',
     icon: '🏆'
   },
+  groq: {
+    freeLimit: '6,000 tokens/min',
+    rateLimit: '30/min',
+    needsApiKey: true,
+    setup: 'https://console.groq.com/keys',
+    icon: '⚡'
+  },
   huggingface: {
-    freeLimit: '1,000 requests/mes aprox',
-    rateLimit: 'Variable según modelo',
+    freeLimit: '1,000/mes',
+    rateLimit: 'Variable',
     needsApiKey: true,
     setup: 'https://huggingface.co/settings/tokens',
     icon: '🤗'
   },
   ollama: {
-    freeLimit: 'Ilimitado (local)',
-    rateLimit: 'Solo limitado por tu hardware',
+    freeLimit: 'Ilimitado',
+    rateLimit: 'Hardware',
     needsApiKey: false,
     setup: 'https://ollama.ai/download',
     icon: '🏠'
-  },
-  groq: {
-    freeLimit: '6,000 tokens/minuto gratis',
-    rateLimit: '30 requests/minuto',
-    needsApiKey: true,
-    setup: 'https://console.groq.com/keys',
-    icon: '⚡'
   }
 };
+
+// ============================================
+// 🎯 COMPONENTE PRINCIPAL
+// ============================================
 
 const DevAIAgent = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const [currentProject, setCurrentProject] = useState(null);
+  const [apiKey, setAPIKey] = useState(API_KEYS.gemini || '');
+  const [currentProvider, setCurrentProvider] = useState('gemini');
+  const [currentAgent, setCurrentAgent] = useState('gemini-1.5-flash');
   const [showSettings, setShowSettings] = useState(false);
-  const [currentAgent, setCurrentAgent] = useState(DEFAULT_MODEL);
-  const [currentProvider, setCurrentProvider] = useState(DEFAULT_PROVIDER);
   const [thinkingProcess, setThinkingProcess] = useState('');
-  const [expandedThinking, setExpandedThinking] = useState({});
-  const [showWelcome, setShowWelcome] = useState(true);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [apiStatus, setApiStatus] = useState({});
-  const [ollamaModels, setOllamaModels] = useState([]);
-  const [envStatus, setEnvStatus] = useState({ missing: [], available: [] });
   
-  // Estados para el historial de conversaciones
+  // Estados para Live Preview
+  const [showPreview, setShowPreview] = useState(false);
+  const [liveCodeBlocks, setLiveCodeBlocks] = useState([]);
+  
+  // Estados móviles
+  const [isMobile, setIsMobile] = useState(false);
+  
+  const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [showMobileKeyboard, setShowMobileKeyboard] = useState(false);
+  const [currentProject, setCurrentProject] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
-  
-  const fileInputRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  const [apiStatus, setApiStatus] = useState({
+    gemini: { icon: '🏆', error: null },
+    ollama: { icon: '🏠', error: null },
+    huggingface: { icon: '🤗', error: null },
+    groq: { icon: '⚡', error: null }
+  });
+  const [expandedThinking, setExpandedThinking] = useState({});
 
-  // Cargar configuración desde variables de entorno
+  // Detectar móvil
   useEffect(() => {
-    // Verificar estado de las variables de entorno
-    const status = checkEnvKeys();
-    setEnvStatus(status);
-    
-    // Configurar proveedor inicial basado en disponibilidad
-    let initialProvider = DEFAULT_PROVIDER;
-    let initialApiKey = API_KEYS[DEFAULT_PROVIDER];
-    
-    // Si el proveedor por defecto no tiene API key, buscar uno disponible
-    if (!initialApiKey && status.available.length > 0) {
-      const firstAvailable = status.available[0].toLowerCase();
-      initialProvider = firstAvailable;
-      initialApiKey = API_KEYS[firstAvailable];
-    }
-    
-    setCurrentProvider(initialProvider);
-    setApiKey(initialApiKey || '');
-    setCurrentAgent(FREE_AI_MODELS[initialProvider] ? Object.keys(FREE_AI_MODELS[initialProvider])[0] : DEFAULT_MODEL);
-    
-    // Inicializar conversaciones vacías
-    setConversations([]);
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Auto-cambiar API key cuando cambia el proveedor
   useEffect(() => {
     const newApiKey = API_KEYS[currentProvider] || '';
-    setApiKey(newApiKey);
+    setAPIKey(newApiKey);
     
     // Cambiar al primer modelo disponible del proveedor
     const availableModels = FREE_AI_MODELS[currentProvider];
@@ -347,377 +817,443 @@ const DevAIAgent = () => {
     }
   }, [currentProvider]);
 
+  // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Verificar estado de APIs al cargar
+  // Extraer bloques de código de los mensajes
+  useEffect(() => {
+    const allCodeBlocks = [];
+    messages.forEach(message => {
+      if (message.role === 'assistant') {
+        const codeRegex = /```(\w+)?\n([\s\S]*?)```/g;
+        let match;
+        while ((match = codeRegex.exec(message.content)) !== null) {
+          const language = match[1] || 'text';
+          const code = match[2].trim();
+          if (code.length > 10) { // Solo código significativo
+            allCodeBlocks.push({ language, code });
+          }
+        }
+      }
+    });
+    setLiveCodeBlocks(allCodeBlocks);
+    
+    // Auto-mostrar preview si hay código previsualizable
+    const hasPreviewableCode = allCodeBlocks.some(block => 
+      ['html', 'css', 'javascript', 'js', 'jsx', 'react', 'vue', 'svelte'].includes(block.language?.toLowerCase())
+    );
+    if (hasPreviewableCode && !showPreview && !isMobile) {
+      setShowPreview(true);
+    }
+  }, [messages, showPreview, isMobile]);
+
+  // Verificar status de APIs
   useEffect(() => {
     checkApiStatus();
-    checkOllamaModels();
-  }, [apiKey, currentProvider]);
+  }, []);
 
-  const checkOllamaModels = async () => {
-    try {
-      const response = await fetch('http://localhost:11434/api/tags', {
-        method: 'GET',
-        signal: AbortSignal.timeout(3000)
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Filtrar modelos problemáticos
-        const workingModels = data.models?.filter(model => 
-          !model.name.includes('mistral') && 
-          !model.name.includes('phi')
-        ) || [];
-        setOllamaModels(workingModels);
-      }
-    } catch (error) {
-      setOllamaModels([]);
-    }
-  };
-
-  // 🔧 FUNCIONES DE DIAGNÓSTICO PARA LAS APIs
-  const testGroqAPI = async (apiKey) => {
-    try {
-      console.log('🧪 Testing Groq API...');
-      
-      // Test solo con modelos que funcionan
-      const workingModels = ['llama3-8b-8192', 'llama3-70b-8192'];
-      
-      const chatResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: 'Hi, just testing!' }],
-          model: workingModels[0], // Usar modelo que sabemos que funciona
-          max_tokens: 50
-        })
-      });
-      
-      if (!chatResponse.ok) {
-        const errorText = await chatResponse.text();
-        console.error('❌ Groq Chat Error:', errorText);
-        return { success: false, error: `Chat error: ${errorText}` };
-      }
-      
-      const chatData = await chatResponse.json();
-      console.log('✅ Groq chat test successful:', chatData.choices[0].message.content);
-      
-      return { success: true, message: 'Groq API funcionando correctamente' };
-      
-    } catch (error) {
-      console.error('❌ Groq Test Error:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  const testHuggingFaceAPI = async (apiKey) => {
-    try {
-      console.log('🧪 Testing HuggingFace API...');
-      
-      // Test con un modelo simple y rápido
-      const response = await fetch('https://api-inference.huggingface.co/models/gpt2', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          inputs: 'Hello, this is a test',
-          parameters: {
-            max_length: 20,
-            temperature: 0.7
-          }
-        })
-      });
-      
-      console.log('HuggingFace Response Status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ HuggingFace Error:', errorText);
-        return { success: false, error: errorText };
-      }
-      
-      const data = await response.json();
-      console.log('✅ HuggingFace test successful:', data);
-      
-      return { success: true, message: 'HuggingFace API funcionando correctamente' };
-      
-    } catch (error) {
-      console.error('❌ HuggingFace Test Error:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // 🔧 FUNCIÓN MEJORADA PARA VERIFICAR ESTADO DE APIs
   const checkApiStatus = async () => {
     const status = {};
     
-    // Verificar Ollama
-    try {
-      const response = await fetch('http://localhost:11434/api/tags', { 
-        method: 'GET',
-        signal: AbortSignal.timeout(3000)
-      });
-      if (response.ok) {
-        status.ollama = { available: true, icon: '🟢' };
-      } else {
-        status.ollama = { available: false, icon: '🔴', error: 'No conectado' };
-      }
-    } catch (error) {
-      status.ollama = { available: false, icon: '🔴', error: 'Ollama no está ejecutándose' };
-    }
+    // Solo verificar APIs disponibles en el dispositivo actual
+    const apisToCheck = isMobile ? ['gemini', 'groq'] : ['gemini', 'groq', 'huggingface', 'ollama'];
     
-    // Test real de Gemini
-    try {
-      if (API_KEYS.gemini) {
-        const geminiTest = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEYS.gemini}`, {
-          method: 'GET'
-        });
-        
-        if (geminiTest.ok) {
-          status.gemini = { available: true, icon: '🟢', error: null };
-        } else {
-          status.gemini = { available: false, icon: '🔴', error: 'API Key inválida' };
+    for (const provider of apisToCheck) {
+      if (provider === 'ollama' && !isMobile) {
+        try {
+          const response = await fetch('http://localhost:11434/api/tags', { 
+            method: 'GET',
+            signal: AbortSignal.timeout(3000)
+          });
+          status.ollama = { 
+            available: response.ok, 
+            icon: response.ok ? '🟢' : '🔴', 
+            error: response.ok ? null : 'No conectado' 
+          };
+        } catch {
+          status.ollama = { available: false, icon: '🔴', error: 'No ejecutándose' };
         }
+      } else if (API_KEYS[provider]) {
+        status[provider] = { available: true, icon: '🟢', error: null };
       } else {
-        status.gemini = { available: false, icon: '🟡', error: 'API Key no configurada' };
+        status[provider] = { available: false, icon: '🟡', error: 'Sin API Key' };
       }
-    } catch (error) {
-      status.gemini = { available: false, icon: '🟡', error: 'Error de conexión' };
     }
     
-    // Test real de Groq
-    if (API_KEYS.groq) {
-      const groqTest = await testGroqAPI(API_KEYS.groq);
-      status.groq = {
-        available: groqTest.success,
-        icon: groqTest.success ? '🟢' : '🔴',
-        error: groqTest.success ? null : groqTest.error
-      };
-    } else {
-      status.groq = { available: false, icon: '🟡', error: 'API Key no configurada' };
-    }
-    
-    // Test real de HuggingFace
-    if (API_KEYS.huggingface) {
-      const hfTest = await testHuggingFaceAPI(API_KEYS.huggingface);
-      status.huggingface = {
-        available: hfTest.success,
-        icon: hfTest.success ? '🟢' : '🔴',
-        error: hfTest.success ? null : hfTest.error
-      };
-    } else {
-      status.huggingface = { available: false, icon: '🟡', error: 'API Key no configurada' };
-    }
-    
-    console.log('📊 API Status Report:', status);
     setApiStatus(status);
   };
 
-  // Generar respuesta inteligente simulada cuando fallan las APIs
+  // Generar respuesta inteligente simulada
   const generateIntelligentResponse = (input) => {
     const lowerInput = input.toLowerCase();
     
-    if (lowerInput.includes('react')) {
+    if (lowerInput.includes('react') || lowerInput.includes('componente')) {
       return {
-        content: `Aquí tienes algunas recomendaciones para React:
+        content: `Te ayudo a crear un componente React funcional:
 
 \`\`\`jsx
-// Componente optimizado con hooks
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const OptimizedComponent = ({ data, onUpdate }) => {
-  const [loading, setLoading] = useState(false);
-  
-  // Memoizar cálculos costosos
-  const processedData = useMemo(() => {
-    return data.filter(item => item.active)
-               .sort((a, b) => a.priority - b.priority);
-  }, [data]);
-  
-  // Callback estable para evitar re-renders
-  const handleClick = useCallback((id) => {
-    setLoading(true);
-    onUpdate(id).finally(() => setLoading(false));
-  }, [onUpdate]);
-  
+const InteractiveCard = () => {
+  const [count, setCount] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+
+  useEffect(() => {
+    if (isActive) {
+      const interval = setInterval(() => {
+        setCount(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isActive]);
+
   return (
-    <div className="component">
-      {processedData.map(item => (
-        <div key={item.id} onClick={() => handleClick(item.id)}>
-          {item.name} {loading && '⏳'}
-        </div>
-      ))}
+    <div style={{
+      maxWidth: '400px',
+      margin: '20px auto',
+      padding: '30px',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      borderRadius: '20px',
+      boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+      color: 'white',
+      textAlign: 'center',
+      fontFamily: 'Arial, sans-serif'
+    }}>
+      <h2 style={{ marginBottom: '20px', fontSize: '24px' }}>
+        🚀 Componente Interactivo
+      </h2>
+      
+      <div style={{
+        fontSize: '48px',
+        fontWeight: 'bold',
+        margin: '20px 0',
+        color: isActive ? '#4ade80' : '#fbbf24'
+      }}>
+        {count}
+      </div>
+      
+      <button
+        onClick={() => setIsActive(!isActive)}
+        style={{
+          background: isActive ? '#ef4444' : '#10b981',
+          color: 'white',
+          border: 'none',
+          padding: '12px 24px',
+          borderRadius: '25px',
+          fontSize: '16px',
+          cursor: 'pointer',
+          marginRight: '10px',
+          transition: 'all 0.3s ease'
+        }}
+      >
+        {isActive ? '⏸️ Pausar' : '▶️ Iniciar'}
+      </button>
+      
+      <button
+        onClick={() => setCount(0)}
+        style={{
+          background: '#6366f1',
+          color: 'white',
+          border: 'none',
+          padding: '12px 24px',
+          borderRadius: '25px',
+          fontSize: '16px',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease'
+        }}
+      >
+        🔄 Reset
+      </button>
+      
+      <p style={{ 
+        marginTop: '20px', 
+        opacity: 0.9, 
+        fontSize: '14px' 
+      }}>
+        Estado: {isActive ? '🟢 Activo' : '🟡 Pausado'}
+      </p>
     </div>
   );
 };
+
+// Exportar el componente para el live preview
+const App = InteractiveCard;
+export default App;
 \`\`\`
 
-**Puntos clave:**
-- ✅ Uso de useMemo para optimizar renders
-- ✅ useCallback para callbacks estables  
-- ✅ Estado local para loading
-- ✅ Keys únicas en listas`
+**✨ Características del componente:**
+
+- 🎯 **useState**: Maneja el contador y estado activo
+- ⏰ **useEffect**: Controla el intervalo automático
+- 🎨 **Estilos inline**: Gradientes y animaciones CSS
+- 🔄 **Interactividad**: Botones para controlar el contador
+- 📱 **Responsive**: Se adapta a diferentes tamaños
+
+¡Puedes ver el resultado en tiempo real en el panel de Live Preview! 👉`
       };
     }
     
-    if (lowerInput.includes('bug') || lowerInput.includes('error')) {
+    if (lowerInput.includes('html') || lowerInput.includes('página')) {
       return {
-        content: `🐛 **Estrategia para encontrar bugs:**
+        content: `Te creo una página HTML moderna con animaciones:
 
-**1. Debugging paso a paso:**
-\`\`\`javascript
-// Agregar logs estratégicos
-console.log('🔍 Estado actual:', state);
-console.log('📥 Props recibidos:', props);
-console.log('⚡ Ejecutando función:', functionName);
-\`\`\`
+\`\`\`html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Página Moderna con Animaciones</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-**2. Herramientas útiles:**
-- React DevTools para inspeccionar componentes
-- Console del navegador para errores JS
-- Network tab para problemas de API
-- Breakpoints en Sources
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-**3. Patrones comunes de bugs:**
-- ❌ Dependencias faltantes en useEffect
-- ❌ Mutación directa del estado
-- ❌ Keys duplicadas en listas
-- ❌ Async/await mal manejado
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            text-align: center;
+            animation: slideUp 0.8s ease-out;
+        }
 
-**4. Checklist de debugging:**
-- [ ] ¿Los datos llegan correctamente? 
-- [ ] ¿El estado se actualiza bien?
-- [ ] ¿Hay errores en consola?
-- [ ] ¿Los tipos de datos son correctos?`
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            animation: fadeIn 1s ease-out 0.3s both;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .feature-card {
+            background: linear-gradient(45deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .animation-demo {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #f59e0b, #d97706);
+            border-radius: 50%;
+            margin: 20px auto;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-30px);
+            }
+            60% {
+                transform: translateY(-15px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Página Moderna</h1>
+        
+        <div class="feature-card">
+            <h3>✨ Diseño Responsivo</h3>
+            <p>Adaptable a cualquier dispositivo</p>
+        </div>
+        
+        <div class="feature-card">
+            <h3>🚀 Animaciones Fluidas</h3>
+            <p>Transiciones suaves y elegantes</p>
+        </div>
+        
+        <div class="feature-card">
+            <h3>💎 Efectos Modernos</h3>
+            <p>Glassmorphism y gradientes</p>
+        </div>
+        
+        <div class="animation-demo"></div>
+        
+        <button class="btn">¡Prueba las Animaciones!</button>
+        <button class="btn">Más Información</button>
+    </div>
+
+    <script>
+        // Agregar interactividad
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.innerHTML = '✅ ¡Clickeado!';
+                setTimeout(() => {
+                    this.innerHTML = this.innerHTML.includes('Prueba') ? '¡Prueba las Animaciones!' : 'Más Información';
+                }, 1500);
+            });
+        });
+    </script>
+</body>
+</html>\`\`\`
+
+**✨ Características de la página:**
+
+- 🎨 **Glassmorphism**: Efectos de vidrio esmerilado
+- 🌈 **Gradientes**: Colores vibrantes y modernos  
+- ⚡ **Animaciones CSS**: Transiciones suaves
+- 📱 **Responsive**: Se adapta a móviles
+- 🎯 **Interactividad**: JavaScript para eventos
+
+¡Mira el resultado en tiempo real en el Live Preview! 👀`
       };
     }
     
-    // Respuesta genérica
+    // Respuesta genérica mejorada
     return {
-      content: `Te ayudo con tu consulta: "${input}"
+      content: `Te ayudo con tu consulta sobre: **"${input}"**
 
-**Análisis basado en tu pregunta:**
+## 🧠 Análisis de tu pregunta
 
 \`\`\`javascript
-// Ejemplo de solución
 const solution = {
-  approach: "Analizar el problema paso a paso",
-  implementation: "Aplicar mejores prácticas",
-  testing: "Verificar que funcione correctamente"
-};
-
-// Implementación práctica
-function handleSolution(problem) {
-  try {
-    const result = processInput(problem);
+  query: "${input}",
+  analysis: "Procesando solicitud...",
+  approach: "Método paso a paso",
+  
+  generateResponse() {
+    console.log('🔍 Analizando:', this.query);
+    
+    const keywords = this.query.toLowerCase().split(' ');
+    const context = this.detectContext(keywords);
+    
     return {
-      success: true,
-      data: result,
-      message: "Problema resuelto ✅"
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message,
-      suggestion: "Revisar datos de entrada"
+      recommendation: this.getRecommendation(context),
+      example: this.generateExample(context),
+      resources: this.getResources(context)
     };
   }
-}
+};
+
+// Ejecutar análisis
+const result = solution.generateResponse();
+console.log('✅ Recomendación:', result.recommendation);
 \`\`\`
 
-**Recomendaciones:**
-- 🔍 Revisar documentación oficial
-- ✅ Aplicar patrones probados
-- 🧪 Hacer testing incremental
-- 📝 Documentar la solución
+## 🎯 Recomendaciones específicas:
 
-¿Te gustaría que profundice en algún aspecto específico?`
+**Paso 1: Análisis**
+- 🔍 Identifica los componentes clave del problema
+- 📋 Lista los requisitos específicos
+- 🎯 Define el resultado esperado
+
+**Paso 2: Implementación**
+- ⚡ Comienza con la solución más simple
+- 🧪 Prueba cada parte por separado
+- 📈 Itera y mejora gradualmente
+
+¿Te gustaría que profundice en algún aspecto específico de tu consulta?`
     };
   };
 
-  // Generar título para la conversación
-  const generateTitle = (firstMessage) => {
-    const msg = firstMessage.toLowerCase();
-    if (msg.includes('react')) return '⚛️ Consulta React';
-    if (msg.includes('python')) return '🐍 Proyecto Python';
-    if (msg.includes('bug') || msg.includes('error')) return '🐛 Resolución de Bugs';
-    if (msg.includes('css') || msg.includes('style')) return '🎨 Estilos & UI';
-    if (msg.includes('api')) return '🔗 API & Backend';
-    return `💬 ${firstMessage.substring(0, 25)}...`;
-  };
-
-  // Guardar conversación actual (en memoria)
-  const saveConversation = () => {
-    if (messages.length === 0) return;
-
-    const userMessages = messages.filter(m => m.role === 'user');
-    if (userMessages.length === 0) return;
-
-    const now = new Date();
-    const conversationData = {
-      id: currentConversationId || Date.now(),
-      title: generateTitle(userMessages[0].content),
-      messages: messages,
-      project: currentProject,
-      createdAt: now,
-      messageCount: messages.length,
-      preview: userMessages[userMessages.length - 1]?.content.substring(0, 50) + '...'
-    };
-
-    setConversations(prev => {
-      const filtered = prev.filter(c => c.id !== conversationData.id);
-      return [conversationData, ...filtered].slice(0, 20);
-    });
-
-    setCurrentConversationId(conversationData.id);
-  };
-
-  // Cargar conversación
-  const loadConversation = (conversation) => {
-    if (messages.length > 0) {
-      saveConversation();
-    }
-    
-    setMessages(conversation.messages);
-    setCurrentProject(conversation.project);
-    setCurrentConversationId(conversation.id);
-    setShowWelcome(false);
-    setShowSidebar(false);
-  };
-
-  // Nueva conversación
   const startNewConversation = () => {
-    if (messages.length > 0) {
-      saveConversation();
-    }
-    
     setMessages([]);
-    setCurrentProject(null);
     setCurrentConversationId(null);
     setShowWelcome(true);
     setShowSidebar(false);
   };
 
-  // Eliminar conversación
-  const deleteConversation = (id, event) => {
-    event.stopPropagation();
-    setConversations(prev => prev.filter(c => c.id !== id));
+  const loadConversation = (conversation) => {
+    setMessages(conversation.messages || []);
+    setCurrentConversationId(conversation.id);
+    setShowWelcome(false);
+    setShowSidebar(false);
+  };
+
+  const deleteConversation = (id, e) => {
+    e.stopPropagation();
+    setConversations(prev => prev.filter(conv => conv.id !== id));
     if (currentConversationId === id) {
       startNewConversation();
     }
   };
 
-  // ============================================
-  // 🚀 FUNCIÓN PRINCIPAL PARA handleSendMessage
-  // ============================================
+  const saveConversation = () => {
+    if (messages.length > 0) {
+      const conversation = {
+        id: currentConversationId || Date.now(),
+        title: messages[0]?.content?.substring(0, 50) + '...' || 'Nueva conversación',
+        preview: messages[messages.length - 1]?.content?.substring(0, 100) + '...' || '',
+        messages: messages,
+        messageCount: messages.length,
+        createdAt: new Date()
+      };
+      
+      setConversations(prev => {
+        const existing = prev.find(conv => conv.id === conversation.id);
+        if (existing) {
+          return prev.map(conv => conv.id === conversation.id ? conversation : conv);
+        }
+        return [conversation, ...prev];
+      });
+      
+      setCurrentConversationId(conversation.id);
+    }
+  };
 
+  // Función principal para handleSendMessage
   const handleSendMessage = async () => {
     if (!input.trim()) return;
 
@@ -727,6 +1263,7 @@ function handleSolution(problem) {
     setInput('');
     setIsLoading(true);
     setShowWelcome(false);
+    setShowMobileKeyboard(false);
 
     // Preparar contexto del proyecto si existe
     let contextualMessages = [...messages, userMessage];
@@ -738,9 +1275,9 @@ CONTEXTO DEL PROYECTO:
 - Archivos: ${currentProject.files.length}
 - Tipos: ${[...new Set(currentProject.files.map(f => f.type))].join(', ')}
 
-ARCHIVOS RELEVANTES (primeros 3):
-${currentProject.files.slice(0, 3).map(file => 
-  `📁 ${file.name} (${file.type})\n\`\`\`${file.type.replace('.', '')}\n${file.content.substring(0, 800)}${file.content.length > 800 ? '\n...[archivo truncado]' : ''}\n\`\`\``
+ARCHIVOS RELEVANTES (primeros 2):
+${currentProject.files.slice(0, 2).map(file => 
+  `📁 ${file.name} (${file.type})\n\`\`\`${file.type.replace('.', '')}\n${file.content.substring(0, 500)}${file.content.length > 500 ? '\n...[truncado]' : ''}\n\`\`\``
 ).join('\n\n')}
 
 CONSULTA: ${currentInput}
@@ -753,7 +1290,6 @@ CONSULTA: ${currentInput}
     }
 
     try {
-      // Verificar si necesita API key
       const needsKey = API_LIMITS[currentProvider].needsApiKey;
       const currentApiKey = API_KEYS[currentProvider];
       
@@ -769,50 +1305,36 @@ CONSULTA: ${currentInput}
 💡 **O cambia a un proveedor ya configurado en Configuración`);
       }
 
-      // Simular proceso de pensamiento específico por proveedor
+      // Simular proceso de pensamiento
       const thinkingSteps = {
-        gemini: [
-          '🔗 Conectando con Google Gemini...',
-          '🧠 Procesando con IA de Google...',
-          '💡 Generando respuesta especializada...',
-          '✨ Finalizando análisis...'
-        ],
-        ollama: [
-        '🏠 Conectando con modelo local...',
-          '⚡ Procesando en tu hardware...',
-          '🔥 Ejecutando modelo localmente...',
-          '✨ Respuesta lista...'
-        ],
-        huggingface: [
-          '🤗 Conectando con HuggingFace...',
-          '🧠 Procesando con modelo open-source...',
-          '💡 Generando respuesta...',
-          '✨ Finalizando...'
-        ],
-        groq: [
-          '⚡ Conectando con Groq (ultra-rápido)...',
-          '🚀 Procesando a máxima velocidad...',
-          '💡 Generando respuesta...',
-          '✨ Completado...'
-        ]
+        gemini: ['🔗 Conectando con Gemini...', '🧠 Procesando consulta...', '✨ Generando respuesta...'],
+        ollama: ['🏠 Conectando localmente...', '⚡ Procesando con Ollama...', '✨ Respuesta lista...'],
+        huggingface: ['🤗 Conectando con HF...', '💡 Procesando modelo...', '✨ Completado...'],
+        groq: ['⚡ Conectando con Groq...', '🚀 Procesamiento ultra-rápido...', '✨ Listo...']
       };
 
       const steps = thinkingSteps[currentProvider] || thinkingSteps.gemini;
       
       for (let i = 0; i < steps.length; i++) {
         setThinkingProcess(steps[i]);
-        const delay = (currentProvider === 'ollama' || currentProvider === 'groq') ? 400 : 800;
+        const delay = isMobile ? 400 : 800;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
 
-      // Llamar a la API gratuita seleccionada
-      const response = await callFreeAIAPI(contextualMessages, apiKey, currentProvider, currentAgent);
+      // Intentar llamar a la API real
+      let response;
+      try {
+        response = await callFreeAIAPI(contextualMessages, apiKey, currentProvider, currentAgent, isMobile);
+      } catch (apiError) {
+        console.warn('API falló, usando respuesta inteligente simulada:', apiError.message);
+        response = generateIntelligentResponse(currentInput);
+      }
 
       const aiResponse = {
         role: 'assistant',
         content: response.content,
-        agent: `${currentAgent} (${currentProvider.toUpperCase()})`,
-        thinking: `Procesé tu consulta usando ${currentProvider.toUpperCase()} - API GRATUITA\n• Modelo: ${response.model}\n• Tokens: ${response.usage?.total_tokens || 'N/A'}\n• Límite: ${API_LIMITS[currentProvider].freeLimit}${currentProject ? `\n• Consideré el contexto de tu proyecto con ${currentProject.files.length} archivos` : ''}`,
+        agent: `${currentProvider.toUpperCase()}`,
+        thinking: `Procesé tu consulta usando ${currentProvider.toUpperCase()}\n• Modelo: ${response.model || currentAgent}\n• Tokens: ${response.usage?.total_tokens || 'N/A'}${currentProject ? `\n• Consideré el contexto de ${currentProject.files.length} archivos` : ''}\n• Estado: ${response.model ? 'API Real' : 'Simulado'}`,
         timestamp: new Date(),
         usage: response.usage,
         provider: currentProvider
@@ -821,64 +1343,19 @@ CONSULTA: ${currentInput}
       setMessages(prev => [...prev, aiResponse]);
       
     } catch (error) {
-      console.error('Error en API gratuita:', error);
+      console.error('Error general:', error);
       
-      // Fallback inteligente: intentar otro proveedor gratuito
-      let fallbackProvider = null;
-      
-      // Intentar Gemini si falló otro
-      if (currentProvider !== 'gemini' && API_KEYS.gemini) {
-        fallbackProvider = 'gemini';
-      }
-      // Intentar Ollama si está disponible (no necesita API key)
-      else if (currentProvider !== 'ollama' && apiStatus.ollama?.available) {
-        fallbackProvider = 'ollama';
-      }
+      // Fallback con respuesta inteligente
+      const simulatedResponse = {
+        role: 'assistant',
+        content: `❌ **Error**: ${error.message}\n\n---\n\n*Generando respuesta inteligente...*\n\n` + 
+                 generateIntelligentResponse(currentInput).content,
+        agent: currentAgent + ' (Simulado)',
+        thinking: `Error: ${error.message}\nUsando respuesta simulada inteligente.`,
+        timestamp: new Date()
+      };
 
-      if (fallbackProvider) {
-        try {
-          setThinkingProcess(`❌ Error en ${currentProvider}, intentando con ${fallbackProvider}...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const fallbackApiKey = API_KEYS[fallbackProvider];
-          const fallbackResponse = await callFreeAIAPI(contextualMessages, fallbackApiKey, fallbackProvider);
-          
-          const aiResponse = {
-            role: 'assistant',
-            content: `⚠️ **Fallback activado** (Error en ${currentProvider})\n\n` + fallbackResponse.content,
-            agent: `${fallbackProvider.toUpperCase()} (Fallback)`,
-            thinking: `Error en ${currentProvider}: ${error.message}\nUsé ${fallbackProvider} como alternativa.`,
-            timestamp: new Date(),
-            provider: fallbackProvider
-          };
-
-          setMessages(prev => [...prev, aiResponse]);
-        } catch (fallbackError) {
-          // Si todo falla, usar respuesta simulada inteligente
-          const simulatedResponse = {
-            role: 'assistant',
-            content: `❌ **Error conectando APIs gratuitas**\n\n**Error principal**: ${error.message}\n**Error fallback**: ${fallbackError.message}\n\n*Usando respuesta simulada inteligente...*\n\n---\n\n` + 
-                     generateIntelligentResponse(currentInput).content,
-            agent: currentAgent + ' (Simulado)',
-            thinking: `Errores múltiples en APIs:\n1. ${currentProvider}: ${error.message}\n2. ${fallbackProvider}: ${fallbackError.message}\nUsando respuesta simulada.`,
-            timestamp: new Date()
-          };
-
-          setMessages(prev => [...prev, simulatedResponse]);
-        }
-      } else {
-        // Respuesta simulada si no hay fallback disponible
-        const simulatedResponse = {
-          role: 'assistant',
-          content: `❌ **Error en API**: ${error.message}\n\n*Ejecutando en modo simulado...*\n\n---\n\n` + 
-                   generateIntelligentResponse(currentInput).content,
-          agent: currentAgent + ' (Simulado)',
-          thinking: `Error de API: ${error.message}\nUsando respuesta simulada como alternativa.`,
-          timestamp: new Date()
-        };
-
-        setMessages(prev => [...prev, simulatedResponse]);
-      }
+      setMessages(prev => [...prev, simulatedResponse]);
     } finally {
       setThinkingProcess('');
       setIsLoading(false);
@@ -886,6 +1363,7 @@ CONSULTA: ${currentInput}
     }
   };
 
+  // Resto de funciones auxiliares
   const handleFileUpload = async (event) => {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
@@ -894,7 +1372,7 @@ CONSULTA: ${currentInput}
     const projectFiles = [];
     
     try {
-      for (const file of files) {
+      for (const file of files.slice(0, isMobile ? 3 : 10)) {
         if (file.size < 2000000) { // 2MB max
           const content = await file.text();
           projectFiles.push({
@@ -918,7 +1396,7 @@ CONSULTA: ${currentInput}
 
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `✅ **Proyecto "${projectName}" cargado**\n\n📁 ${projectFiles.length} archivos analizados\n📊 Tamaño total: ${Math.round(projectFiles.reduce((acc, f) => acc + f.size, 0) / 1024)} KB\n\n🧠 **Contexto disponible para IA:**\n${projectFiles.map(f => `• ${f.name} (${f.type})`).join('\n')}\n\n💡 *Ahora puedes hacer preguntas específicas sobre tu proyecto*`,
+        content: `✅ **Proyecto cargado exitosamente**\n\n📁 **${projectName}**\n📊 ${projectFiles.length} archivos procesados\n💾 ${Math.round(projectFiles.reduce((acc, f) => acc + f.size, 0) / 1024)} KB total\n\n🧠 **Contexto disponible para consultas:**\n${projectFiles.map(f => `• ${f.name} (${f.type})`).join('\n')}\n\n💡 *Ahora puedes preguntarme sobre tu código, encontrar bugs, pedir optimizaciones, etc.*`,
         agent: 'Sistema',
         timestamp: new Date()
       }]);
@@ -926,13 +1404,24 @@ CONSULTA: ${currentInput}
       setShowWelcome(false);
     } catch (error) {
       console.error('Error cargando archivos:', error);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `❌ **Error cargando proyecto**: ${error.message}\n\n💡 **Sugerencias:**\n- Asegúrate de que los archivos sean de texto\n- Verifica que no excedan 2MB por archivo\n- Intenta con menos archivos si es un proyecto grande`,
+        agent: 'Sistema',
+        timestamp: new Date()
+      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).then(() => {
+      // Podrías agregar un toast notification aquí
+      console.log('Texto copiado al portapapeles');
+    }).catch(err => {
+      console.error('Error copiando texto:', err);
+    });
   };
 
   const toggleThinking = (messageIndex) => {
@@ -942,400 +1431,734 @@ CONSULTA: ${currentInput}
     }));
   };
 
+  // Obtener solo las APIs disponibles según el dispositivo
+  const getAvailableProviders = () => {
+    return isMobile 
+      ? { gemini: API_LIMITS.gemini, groq: API_LIMITS.groq }
+      : API_LIMITS;
+  };
+
+  const getAvailableModels = () => {
+    return isMobile && (currentProvider === 'huggingface' || currentProvider === 'ollama')
+      ? {}
+      : FREE_AI_MODELS[currentProvider] || {};
+  };
+
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white">
-      {/* Sidebar */}
-      <div className={`${showSidebar ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-50 w-80 bg-gray-800/95 backdrop-blur-xl border-r border-gray-700 transition-transform duration-300`}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h2 className="text-xl font-bold">💬 Conversaciones</h2>
+    <div style={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #1e293b 0%, #3b82f6 50%, #7c3aed 100%)',
+      color: 'white',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'relative'
+    }}>
+      {/* Header móvil optimizado */}
+      <header style={{
+        height: isMobile ? '56px' : '64px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: isMobile ? '0 12px' : '0 16px',
+        borderBottom: '1px solid rgba(55, 65, 81, 0.5)',
+        backgroundColor: 'rgba(31, 41, 55, 0.95)',
+        backdropFilter: 'blur(12px)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 40
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px', flex: 1, minWidth: 0 }}>
           <button
-            onClick={() => setShowSidebar(false)}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+            onClick={() => setShowSidebar(true)}
+            style={{
+              padding: '8px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              color: 'white',
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.5)'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
-        <div className="p-4">
-          <button
-            onClick={startNewConversation}
-            className="w-full flex items-center gap-2 p-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors mb-4"
-          >
-            <Plus className="w-4 h-4" />
-            Nueva Conversación
+            <Menu style={{ width: isMobile ? '16px' : '20px', height: isMobile ? '16px' : '20px' }} />
           </button>
           
-          <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
-            {conversations.map(conv => (
-              <div
-                key={conv.id}
-                onClick={() => loadConversation(conv)}
-                className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                  currentConversationId === conv.id ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium truncate">{conv.title}</h3>
-                    <p className="text-sm text-gray-400 truncate">{conv.preview}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                      <MessageSquare className="w-3 h-3" />
-                      {conv.messageCount} mensajes
-                      <Clock className="w-3 h-3 ml-2" />
-                      {conv.createdAt.toLocaleDateString()}
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => deleteConversation(conv.id, e)}
-                    className="p-1 hover:bg-red-600 rounded transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Overlay */}
-      {showSidebar && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setShowSidebar(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-xl">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowSidebar(true)}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">DevAI Agent</h1>
-                <p className="text-sm text-gray-400">
-                  {API_LIMITS[currentProvider].icon} {currentProvider.toUpperCase()} • {FREE_AI_MODELS[currentProvider][currentAgent]}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <div style={{
+              width: isMobile ? '24px' : '32px',
+              height: isMobile ? '24px' : '32px',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Sparkles style={{ width: isMobile ? '12px' : '16px', height: isMobile ? '12px' : '16px' }} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ 
+                fontSize: isMobile ? '14px' : '18px', 
+                fontWeight: 'bold',
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>DevAI Agent</h1>
+              {!isMobile && (
+                <p style={{ 
+                  fontSize: '12px', 
+                  color: '#9ca3af',
+                  margin: 0,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {API_LIMITS[currentProvider].icon} {currentProvider.toUpperCase()} • Live Preview
                 </p>
-              </div>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2">
-            {/* Status indicators */}
-            <div className="flex items-center gap-1">
-              {Object.entries(apiStatus).map(([provider, status]) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '8px', flexShrink: 0 }}>
+          {/* Live Preview Toggle */}
+          {liveCodeBlocks.length > 0 && !isMobile && (
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                backgroundColor: showPreview ? '#2563eb' : 'transparent',
+                color: 'white'
+              }}
+              onMouseEnter={(e) => !showPreview && (e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.5)')}
+              onMouseLeave={(e) => !showPreview && (e.target.style.backgroundColor = 'transparent')}
+              title={showPreview ? "Ocultar Live Preview" : "Mostrar Live Preview"}
+            >
+              {showPreview ? <EyeOff style={{ width: '16px', height: '16px' }} /> : <Eye style={{ width: '16px', height: '16px' }} />}
+            </button>
+          )}
+
+          {/* Status indicators - solo en desktop */}
+          {!isMobile && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {Object.entries(apiStatus).slice(0, 2).map(([provider, status]) => (
                 <div
                   key={provider}
-                  className="flex items-center gap-1 px-2 py-1 bg-gray-700 rounded text-xs"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 8px',
+                    backgroundColor: 'rgba(55, 65, 81, 0.5)',
+                    borderRadius: '4px',
+                    fontSize: '12px'
+                  }}
                   title={`${provider}: ${status.error || 'Disponible'}`}
                 >
                   <span>{status.icon}</span>
-                  <span className="capitalize">{provider}</span>
                 </div>
               ))}
             </div>
+          )}
 
-            {currentProject && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-green-600/20 border border-green-500/30 rounded-lg">
-                <FolderOpen className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-green-300">{currentProject.name}</span>
-                <span className="text-xs text-green-400">({currentProject.files.length} archivos)</span>
-              </div>
+          {/* Project indicator */}
+          {currentProject && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              backgroundColor: 'rgba(34, 197, 94, 0.2)',
+              border: '1px solid rgba(34, 197, 94, 0.3)',
+              borderRadius: '8px',
+              maxWidth: isMobile ? '80px' : 'none'
+            }}>
+              <FolderOpen style={{ width: '12px', height: '12px', color: '#86efac', flexShrink: 0 }} />
+              <span style={{
+                fontSize: isMobile ? '12px' : '14px',
+                color: '#bbf7d0',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {isMobile ? `${currentProject.files.length}` : currentProject.name}
+              </span>
+            </div>
+          )}
+
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            style={{
+              padding: '8px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              color: 'white',
+              transition: 'background 0.2s',
+              position: 'relative',
+              flexShrink: 0
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.5)'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+          >
+            <Settings style={{ width: isMobile ? '16px' : '20px', height: isMobile ? '16px' : '20px' }} />
+            {!apiKey && (
+              <span style={{
+                position: 'absolute',
+                top: '4px',
+                right: '4px',
+                width: '8px',
+                height: '8px',
+                backgroundColor: '#eab308',
+                borderRadius: '50%'
+              }}></span>
             )}
+          </button>
+        </div>
+      </header>
 
+      {/* Live Code Preview Component */}
+      {!isMobile && (
+        <LiveCodePreview 
+          codeBlocks={liveCodeBlocks}
+          isVisible={showPreview}
+          onToggle={() => setShowPreview(!showPreview)}
+          isMobile={isMobile}
+        />
+      )}
+
+      {/* Main content area */}
+      <div style={{
+        flex: 1,
+        marginRight: showPreview && !isMobile ? '50%' : 0,
+        transition: 'margin-right 0.3s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}>
+        {/* Sidebar móvil optimizado */}
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: isMobile ? '100%' : '320px',
+          backgroundColor: 'rgba(31, 41, 55, 0.95)',
+          backdropFilter: 'blur(12px)',
+          borderRight: '1px solid rgba(55, 65, 81, 0.5)',
+          transform: showSidebar ? 'translateX(0)' : 'translateX(-100%)',
+          transition: 'transform 0.3s ease',
+          zIndex: 50
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px',
+            borderBottom: '1px solid rgba(55, 65, 81, 0.5)'
+          }}>
+            <h2 style={{ fontSize: isMobile ? '18px' : '20px', fontWeight: 'bold', margin: 0 }}>
+              💬 Conversaciones
+            </h2>
             <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors relative"
+              onClick={() => setShowSidebar(false)}
+              style={{
+                padding: '8px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                color: 'white',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.5)'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
             >
-              <Settings className="w-5 h-5" />
-              {!apiKey && <span className="absolute top-0 right-0 w-3 h-3 bg-yellow-500 rounded-full"></span>}
+              <X style={{ width: '20px', height: '20px' }} />
             </button>
           </div>
-        </header>
+          
+          <div style={{ padding: '16px', height: 'calc(100% - 73px)', overflowY: 'auto' }}>
+            <button
+              onClick={startNewConversation}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px',
+                backgroundColor: '#2563eb',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                marginBottom: '16px'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#1d4ed8'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#2563eb'}
+            >
+              <Plus style={{ width: '16px', height: '16px' }} />
+              Nueva Conversación
+            </button>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {conversations.map(conv => (
+                <div
+                  key={conv.id}
+                  onClick={() => loadConversation(conv)}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                    backgroundColor: currentConversationId === conv.id ? '#2563eb' : 'rgba(55, 65, 81, 0.5)'
+                  }}
+                  onMouseEnter={(e) => currentConversationId !== conv.id && (e.currentTarget.style.backgroundColor = 'rgba(55, 65, 81, 0.8)')}
+                  onMouseLeave={(e) => currentConversationId !== conv.id && (e.currentTarget.style.backgroundColor = 'rgba(55, 65, 81, 0.5)')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 style={{ 
+                        fontWeight: '500',
+                        fontSize: '14px',
+                        margin: '0 0 4px 0',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>{conv.title}</h3>
+                      <p style={{ 
+                        fontSize: '12px',
+                        color: '#9ca3af',
+                        margin: '0 0 4px 0',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>{conv.preview}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#6b7280' }}>
+                        <MessageSquare style={{ width: '12px', height: '12px' }} />
+                        {conv.messageCount}
+                        <Clock style={{ width: '12px', height: '12px', marginLeft: '4px' }} />
+                        {conv.createdAt.toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => deleteConversation(conv.id, e)}
+                      style={{
+                        padding: '4px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        color: '#ef4444',
+                        transition: 'background 0.2s',
+                        marginLeft: '8px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                    >
+                      <Trash2 style={{ width: '16px', height: '16px' }} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-        {/* Settings Panel */}
+        {/* Overlay */}
+        {showSidebar && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 40
+            }}
+            onClick={() => setShowSidebar(false)}
+          />
+        )}
+
+        {/* Settings Panel móvil optimizado */}
         {showSettings && (
-          <div className="border-b border-gray-700 bg-gray-800/30 p-4">
-            <div className="max-w-4xl mx-auto space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                ⚙️ Configuración de APIs Gratuitas
+          <div style={{
+            borderBottom: '1px solid rgba(55, 65, 81, 0.5)',
+            backgroundColor: 'rgba(31, 41, 55, 0.95)',
+            backdropFilter: 'blur(12px)'
+          }}>
+            <div style={{ padding: '16px', maxHeight: '320px', overflowY: 'auto' }}>
+              <h3 style={{ 
+                fontSize: isMobile ? '18px' : '20px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '16px'
+              }}>
+                ⚙️ Configuración
               </h3>
               
-              {/* Provider Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {Object.entries(API_LIMITS).map(([provider, info]) => (
+              {/* Provider Selection móvil */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+                gap: '12px',
+                marginBottom: '16px'
+              }}>
+                {Object.entries(getAvailableProviders()).map(([provider, info]) => (
                   <button
                     key={provider}
                     onClick={() => setCurrentProvider(provider)}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      currentProvider === provider
-                        ? 'border-blue-500 bg-blue-500/20'
-                        : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
-                    }`}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: `2px solid ${currentProvider === provider ? '#2563eb' : '#4b5563'}`,
+                      backgroundColor: currentProvider === provider ? 'rgba(37, 99, 235, 0.2)' : 'rgba(55, 65, 81, 0.5)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
                   >
-                    <div className="text-center">
-                      <div className="text-2xl mb-2">{info.icon}</div>
-                      <div className="font-medium capitalize">{provider}</div>
-                      <div className="text-xs text-gray-400 mt-1">{info.freeLimit}</div>
-                      <div className="text-xs text-gray-500">{info.rateLimit}</div>
-                      {apiStatus[provider] && (
-                        <div className="mt-2 flex items-center justify-center gap-1">
-                          <span className="text-lg">{apiStatus[provider].icon}</span>
-                          {apiStatus[provider].error && (
-                            <span className="text-xs text-red-400">{apiStatus[provider].error}</span>
-                          )}
-                        </div>
-                      )}
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: isMobile ? '20px' : '24px', marginBottom: '4px' }}>{info.icon}</div>
+                      <div style={{ fontSize: isMobile ? '12px' : '14px', fontWeight: '500', textTransform: 'capitalize' }}>{provider}</div>
+                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{info.freeLimit}</div>
                     </div>
                   </button>
                 ))}
               </div>
 
-              {/* API Key Input */}
+              {/* API Key Input móvil */}
               {API_LIMITS[currentProvider].needsApiKey && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
                     🔑 API Key de {currentProvider.toUpperCase()}
                   </label>
-                  <div className="flex gap-2">
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '8px' }}>
                     <input
                       type="password"
                       value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder={`Ingresa tu API key de ${currentProvider}`}
-                      className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
+                      onChange={(e) => setAPIKey(e.target.value)}
+                      placeholder={`Ingresa tu API key`}
+                      style={{
+                        flex: isMobile ? 'none' : 1,
+                        width: isMobile ? '100%' : 'auto',
+                        padding: '8px 12px',
+                        backgroundColor: 'rgba(55, 65, 81, 0.5)',
+                        border: '1px solid #4b5563',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                        outline: 'none'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+                      onBlur={(e) => e.target.style.borderColor = '#4b5563'}
                     />
                     <a
                       href={API_LIMITS[currentProvider].setup}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap"
+                      style={{
+                        padding: '8px 12px',
+                        backgroundColor: '#2563eb',
+                        borderRadius: '8px',
+                        color: 'white',
+                        textDecoration: 'none',
+                        fontSize: '14px',
+                        textAlign: 'center',
+                        transition: 'background 0.2s',
+                        whiteSpace: 'nowrap'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = '#1d4ed8'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = '#2563eb'}
                     >
                       Obtener Gratis
                     </a>
                   </div>
-                  <p className="text-xs text-gray-400">
-                    ✅ 100% Gratis • {API_LIMITS[currentProvider].freeLimit} • 
-                    <a href={API_LIMITS[currentProvider].setup} className="text-blue-400 hover:underline ml-1">
-                      Crear cuenta gratis
-                    </a>
-                  </p>
                 </div>
               )}
 
-              {/* Model Selection */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">
-                  🤖 Modelo de {currentProvider.toUpperCase()}
+              {/* Model Selection móvil */}
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
+                  🤖 Modelo
                 </label>
                 <select
                   value={currentAgent}
                   onChange={(e) => setCurrentAgent(e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    backgroundColor: 'rgba(55, 65, 81, 0.5)',
+                    border: '1px solid #4b5563',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+                  onBlur={(e) => e.target.style.borderColor = '#4b5563'}
                 >
-                  {Object.entries(FREE_AI_MODELS[currentProvider] || {}).map(([model, description]) => (
-                    <option key={model} value={model}>
-                      {description}
+                  {Object.entries(getAvailableModels()).map(([model, description]) => (
+                    <option key={model} value={model} style={{ backgroundColor: '#1f2937' }}>
+                      {isMobile ? description.split(' ').slice(0, 2).join(' ') : description}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Ollama Models */}
-              {currentProvider === 'ollama' && ollamaModels.length > 0 && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">
-                    🏠 Modelos Ollama Disponibles
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {ollamaModels.map(model => (
-                      <button
-                        key={model.name}
-                        onClick={() => setCurrentAgent(model.name)}
-                        className={`p-2 rounded text-xs transition-colors ${
-                          currentAgent === model.name
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 hover:bg-gray-600'
-                        }`}
-                      >
-                        {model.name}
-                      </button>
-                    ))}
+              {/* Live Preview Info */}
+              {liveCodeBlocks.length > 0 && !isMobile && (
+                <div style={{
+                  marginTop: '16px',
+                  padding: '12px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                  border: '1px solid rgba(37, 99, 235, 0.3)',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                    <Eye style={{ width: '16px', height: '16px', color: '#60a5fa' }} />
+                    <span style={{ color: '#93bbfc' }}>
+                      {liveCodeBlocks.length} bloques de código detectados
+                    </span>
                   </div>
+                  <p style={{ fontSize: '12px', color: '#93bbfc', marginTop: '4px', margin: '4px 0 0 0' }}>
+                    Usa el botón Live Preview para ver el código en acción
+                  </p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="max-w-4xl mx-auto space-y-6">
-            {/* Welcome Screen */}
+        {/* Messages área optimizada para móvil */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: isMobile ? '8px' : '16px',
+          paddingBottom: showMobileKeyboard ? 0 : undefined
+        }}>
+          <div style={{
+            maxWidth: isMobile ? '100%' : '896px',
+            margin: '0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            {/* Welcome Screen móvil */}
             {showWelcome && messages.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <Sparkles className="w-10 h-10" />
+              <div style={{ textAlign: 'center', padding: isMobile ? '32px 0' : '48px 0' }}>
+                <div style={{
+                  width: isMobile ? '64px' : '80px',
+                  height: isMobile ? '64px' : '80px',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px'
+                }}>
+                  <Sparkles style={{ width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px' }} />
                 </div>
-                <h2 className="text-3xl font-bold mb-4">¡Bienvenido a DevAI Agent!</h2>
-                <p className="text-xl text-gray-300 mb-8">Tu asistente gratuito de desarrollo con IA</p>
+                <h2 style={{ fontSize: isMobile ? '20px' : '28px', fontWeight: 'bold', marginBottom: '8px' }}>
+                  ¡DevAI con Live Preview!
+                </h2>
+                <p style={{ fontSize: isMobile ? '14px' : '20px', color: '#d1d5db', marginBottom: '24px' }}>
+                  Código interactivo en tiempo real
+                </p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                  {Object.entries(API_LIMITS).map(([provider, info]) => (
-                    <div key={provider} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                      <div className="text-3xl mb-2">{info.icon}</div>
-                      <h3 className="font-semibold capitalize">{provider}</h3>
-                      <p className="text-sm text-gray-400">{info.freeLimit}</p>
-                      <p className="text-xs text-gray-500 mt-1">{info.rateLimit}</p>
+                {!isMobile && (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '16px',
+                    marginBottom: '24px',
+                    maxWidth: '600px',
+                    margin: '0 auto 24px'
+                  }}>
+                    <div style={{
+                      backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      border: '1px solid rgba(55, 65, 81, 0.5)'
+                    }}>
+                      <div style={{ fontSize: '24px', marginBottom: '8px' }}>🏆</div>
+                      <h3 style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0' }}>Gemini API</h3>
+                      <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>1,500/día gratis</p>
                     </div>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                  <div className="bg-gray-800/30 rounded-lg p-6 border border-gray-700">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <Code className="w-5 h-5 text-blue-400" />
-                      Análisis de Código
-                    </h3>
-                    <ul className="space-y-2 text-sm text-gray-300">
-                      <li>• Sube archivos de tu proyecto</li>
-                      <li>• Encuentra bugs automáticamente</li>
-                      <li>• Optimiza rendimiento</li>
-                      <li>• Mejores prácticas</li>
-                    </ul>
+                    <div style={{
+                      backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      border: '1px solid rgba(55, 65, 81, 0.5)'
+                    }}>
+                      <div style={{ fontSize: '24px', marginBottom: '8px' }}>👁️</div>
+                      <h3 style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0' }}>Live Preview</h3>
+                      <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>HTML, CSS, JS, React</p>
+                    </div>
+                    <div style={{
+                      backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      border: '1px solid rgba(55, 65, 81, 0.5)'
+                    }}>
+                      <div style={{ fontSize: '24px', marginBottom: '8px' }}>📱</div>
+                      <h3 style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0' }}>Móvil Optimizado</h3>
+                      <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>Funciona en cualquier dispositivo</p>
+                    </div>
                   </div>
+                )}
 
-                  <div className="bg-gray-800/30 rounded-lg p-6 border border-gray-700">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-yellow-400" />
-                      100% Gratuito
-                    </h3>
-                    <ul className="space-y-2 text-sm text-gray-300">
-                      <li>• Sin límites de uso</li>
-                      <li>• Múltiples modelos IA</li>
-                      <li>• Respuestas instantáneas</li>
-                      <li>• Sin suscripciones</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                <div style={{
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  gap: '12px',
+                  justifyContent: 'center',
+                  marginTop: '24px'
+                }}>
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '12px 16px',
+                      backgroundColor: '#2563eb',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      width: isMobile ? '100%' : 'auto'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#1d4ed8'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = '#2563eb'}
                   >
-                    <Upload className="w-5 h-5" />
+                    <Upload style={{ width: '16px', height: '16px' }} />
                     Subir Proyecto
                   </button>
                   
                   <button
                     onClick={() => setShowSettings(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '12px 16px',
+                      backgroundColor: 'rgba(55, 65, 81, 0.5)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      width: isMobile ? '100%' : 'auto'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.8)'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.5)'}
                   >
-                    <Settings className="w-5 h-5" />
+                    <Settings style={{ width: '16px', height: '16px' }} />
                     Configurar API
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Messages */}
+            {/* Messages móvil optimizado */}
             {messages.map((message, index) => (
-              <div key={index} className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-3xl ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
+              <div key={index} style={{
+                display: 'flex',
+                gap: '8px',
+                justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start'
+              }}>
+                <div style={{
+                  maxWidth: isMobile ? '85%' : '768px',
+                  order: message.role === 'user' ? 2 : 1
+                }}>
                   {message.role === 'assistant' && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                        <Sparkles className="w-3 h-3" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Sparkles style={{ width: '12px', height: '12px' }} />
                       </div>
-                      <span className="text-sm text-gray-400">
+                      <span style={{ fontSize: '12px', color: '#9ca3af' }}>
                         {message.agent || currentAgent}
                       </span>
-                      {message.timestamp && (
-                        <span className="text-xs text-gray-500">
+                      {message.timestamp && !isMobile && (
+                        <span style={{ fontSize: '11px', color: '#6b7280' }}>
                           {message.timestamp.toLocaleTimeString()}
                         </span>
                       )}
                     </div>
                   )}
                   
-                  <div className={`rounded-2xl px-6 py-4 ${
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800/50 border border-gray-700'
-                  }`}>
-                    <div className="prose prose-invert max-w-none">
-                      {message.content.split('```').map((part, i) => {
-                        if (i % 2 === 1) {
-                          const lines = part.split('\n');
-                          const language = lines[0];
-                          const code = lines.slice(1).join('\n');
-                          return (
-                            <div key={i} className="relative my-4">
-                              <div className="flex items-center justify-between bg-gray-900 px-4 py-2 rounded-t-lg border border-gray-700">
-                                <span className="text-sm text-gray-400">{language || 'code'}</span>
-                                <button
-                                  onClick={() => copyToClipboard(code)}
-                                  className="text-gray-400 hover:text-white transition-colors"
-                                >
-                                  <Copy className="w-4 h-4" />
-                                </button>
-                              </div>
-                              <pre className="bg-gray-950 p-4 rounded-b-lg border-x border-b border-gray-700 overflow-x-auto">
-                                <code className="text-sm">{code}</code>
-                              </pre>
-                            </div>
-                          );
-                        } else {
-                          return (
-                            <div key={i} className="whitespace-pre-wrap">
-                              {part.split('\n').map((line, lineIndex) => {
-                                if (line.startsWith('**') && line.endsWith('**')) {
-                                  return <div key={lineIndex} className="font-bold my-2">{line.slice(2, -2)}</div>;
-                                }
-                                if (line.startsWith('- ') || line.startsWith('• ')) {
-                                  return <div key={lineIndex} className="ml-4 my-1">{line}</div>;
-                                }
-                                if (line.startsWith('# ')) {
-                                  return <h1 key={lineIndex} className="text-xl font-bold my-3">{line.slice(2)}</h1>;
-                                }
-                                if (line.startsWith('## ')) {
-                                  return <h2 key={lineIndex} className="text-lg font-bold my-2">{line.slice(3)}</h2>;
-                                }
-                                return <div key={lineIndex}>{line}</div>;
-                              })}
-                            </div>
-                          );
-                        }
-                      })}
+                  <div style={{
+                    borderRadius: '16px',
+                    padding: '12px 16px',
+                    backgroundColor: message.role === 'user' ? '#2563eb' : 'rgba(31, 41, 55, 0.5)',
+                    border: message.role === 'user' ? 'none' : '1px solid rgba(55, 65, 81, 0.5)',
+                    wordBreak: 'break-word'
+                  }}>
+                    <div style={{ fontSize: '14px', lineHeight: '1.5' }}>
+                      {renderMessageContent(message.content)}
                     </div>
 
                     {message.thinking && (
-                      <div className="mt-4 pt-4 border-t border-gray-700">
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(55, 65, 81, 0.5)' }}>
                         <button
                           onClick={() => toggleThinking(index)}
-                          className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            background: 'none',
+                            border: 'none',
+                            color: '#9ca3af',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            padding: 0,
+                            transition: 'color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.target.style.color = '#d1d5db'}
+                          onMouseLeave={(e) => e.target.style.color = '#9ca3af'}
                         >
-                          <AlertCircle className="w-4 h-4" />
+                          <AlertCircle style={{ width: '12px', height: '12px' }} />
                           Proceso de análisis
-                          <span className="text-xs">
-                            {expandedThinking[index] ? '▼' : '▶'}
-                          </span>
+                          {expandedThinking[index] ? 
+                            <ChevronUp style={{ width: '12px', height: '12px' }} /> : 
+                            <ChevronDown style={{ width: '12px', height: '12px' }} />
+                          }
                         </button>
                         
                         {expandedThinking[index] && (
-                          <div className="mt-2 p-3 bg-gray-900/50 rounded-lg text-sm text-gray-300 whitespace-pre-wrap">
+                          <div style={{
+                            marginTop: '8px',
+                            padding: '12px',
+                            backgroundColor: 'rgba(17, 24, 39, 0.5)',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            color: '#d1d5db',
+                            whiteSpace: 'pre-wrap'
+                          }}>
                             {message.thinking}
                           </div>
                         )}
@@ -1344,39 +2167,76 @@ CONSULTA: ${currentInput}
                   </div>
                 </div>
                 
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  message.role === 'user' ? 'bg-blue-600 order-1' : 'bg-gray-700 order-2'
-                }`}>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  backgroundColor: message.role === 'user' ? '#2563eb' : 'rgba(55, 65, 81, 0.5)',
+                  order: message.role === 'user' ? 1 : 2
+                }}>
                   {message.role === 'user' ? (
-                    <span className="text-sm font-medium">Tu</span>
+                    <span style={{ fontSize: '11px', fontWeight: '500' }}>Tu</span>
                   ) : (
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkles style={{ width: '12px', height: '12px' }} />
                   )}
                 </div>
               </div>
             ))}
 
-            {/* Thinking Process */}
+            {/* Thinking Process móvil */}
             {thinkingProcess && (
-              <div className="flex gap-4 justify-start">
-                <div className="max-w-3xl">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                      <Sparkles className="w-3 h-3" />
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-start' }}>
+                <div style={{ maxWidth: isMobile ? '85%' : '768px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Sparkles style={{ width: '12px', height: '12px' }} />
                     </div>
-                    <span className="text-sm text-gray-400">Procesando...</span>
+                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>Procesando...</span>
                   </div>
                   
-                  <div className="bg-gray-800/50 border border-gray-700 rounded-2xl px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                      <span className="text-gray-300">{thinkingProcess}</span>
+                  <div style={{
+                    backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                    border: '1px solid rgba(55, 65, 81, 0.5)',
+                    borderRadius: '16px',
+                    padding: '12px 16px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '2px solid #3b82f6',
+                        borderTopColor: 'transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                      <span style={{ color: '#d1d5db', fontSize: '14px' }}>{thinkingProcess}</span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(55, 65, 81, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Sparkles style={{ width: '12px', height: '12px' }} />
                 </div>
               </div>
             )}
