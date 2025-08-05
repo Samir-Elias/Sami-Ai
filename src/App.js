@@ -2,6 +2,48 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Github, Send, Settings, FolderOpen, MessageSquare, Code, Trash2, Sparkles, Plus, Menu, X, AlertCircle, CheckCircle, Wifi, WifiOff, Copy, Clock, Zap } from 'lucide-react';
 
 // ============================================
+// 🔑 CONFIGURACIÓN DE VARIABLES DE ENTORNO
+// ============================================
+
+const API_KEYS = {
+  gemini: process.env.REACT_APP_GEMINI_API_KEY,
+  huggingface: process.env.REACT_APP_HUGGINGFACE_API_KEY,
+  groq: process.env.REACT_APP_GROQ_API_KEY,
+  ollama: null // Ollama no necesita API key
+};
+
+const DEFAULT_PROVIDER = process.env.REACT_APP_DEFAULT_PROVIDER || 'gemini';
+const DEFAULT_MODEL = process.env.REACT_APP_DEFAULT_MODEL || 'gemini-1.5-flash';
+
+// Verificar que las API keys estén configuradas
+const checkEnvKeys = () => {
+  const missing = [];
+  const available = [];
+  
+  Object.entries(API_KEYS).forEach(([provider, key]) => {
+    if (provider !== 'ollama') {
+      if (!key) {
+        missing.push(provider.toUpperCase());
+      } else {
+        available.push(provider.toUpperCase());
+      }
+    }
+  });
+  
+  console.log('🔑 API Keys Status:');
+  console.log('✅ Available:', available.join(', '));
+  if (missing.length > 0) {
+    console.warn('❌ Missing:', missing.join(', '));
+    console.warn('💡 Add these to your .env file:');
+    missing.forEach(provider => {
+      console.warn(`REACT_APP_${provider}_API_KEY=your_key_here`);
+    });
+  }
+  
+  return { missing, available };
+};
+
+// ============================================
 // 🆓 FUNCIONES DE APIS GRATUITAS
 // ============================================
 
@@ -184,7 +226,7 @@ const callFreeAIAPI = async (messages, apiKey, provider = 'gemini', model = null
 };
 
 // ============================================
-// 🔧 CONFIGURACIÓN DE MODELOS GRATUITOS
+// 🔧 CONFIGURACIÓN DE MODELOS GRATUITOS (SOLO FUNCIONALES)
 // ============================================
 
 const FREE_AI_MODELS = {
@@ -202,15 +244,13 @@ const FREE_AI_MODELS = {
   ollama: {
     'llama3.2:3b': '🦙 Llama 3.2 3B (Rápido)',
     'llama3.2:1b': '⚡ Llama 3.2 1B (Ultra rápido)',
-    'codellama:7b': '💻 Code Llama 7B (Para código)',
-    'mistral:7b': '🎯 Mistral 7B (Balanceado)',
-    'phi3:mini': '🔥 Phi 3 Mini (Eficiente)'
+    'codellama:7b': '💻 Code Llama 7B (Para código)'
+    // Removidos: mistral:7b y phi3:mini (no funcionan correctamente)
   },
   groq: {
     'llama3-8b-8192': '🚀 Llama 3 8B (Ultra rápido)',
-    'llama3-70b-8192': '💪 Llama 3 70B (Más potente)',
-    'mixtral-8x7b-32768': '🎨 Mixtral 8x7B (Experto)',
-    'gemma-7b-it': '💎 Gemma 7B (Google)'
+    'llama3-70b-8192': '💪 Llama 3 70B (Más potente)'
+    // Removidos: mixtral-8x7b-32768 y gemma-7b-it (problemas reportados)
   }
 };
 
@@ -245,41 +285,68 @@ const API_LIMITS = {
   }
 };
 
-// 🔄 REEMPLAZAR en tu App.js - Línea donde manejas apiKey
-
 const DevAIAgent = () => {
-  // ❌ ANTES: const [apiKey, setApiKey] = useState('');
-  // ✅ DESPUÉS:
-  const [apiKey, setApiKey] = useState(() => {
-    // Intentar obtener de variables de entorno primero
-    const envKey = getApiKeyFromEnv(currentProvider);
-    return envKey || '';
-  });
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [currentProject, setCurrentProject] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentAgent, setCurrentAgent] = useState(DEFAULT_MODEL);
+  const [currentProvider, setCurrentProvider] = useState(DEFAULT_PROVIDER);
+  const [thinkingProcess, setThinkingProcess] = useState('');
+  const [expandedThinking, setExpandedThinking] = useState({});
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [apiStatus, setApiStatus] = useState({});
+  const [ollamaModels, setOllamaModels] = useState([]);
+  const [envStatus, setEnvStatus] = useState({ missing: [], available: [] });
+  
+  // Estados para el historial de conversaciones
+  const [conversations, setConversations] = useState([]);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
+  
+  const fileInputRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
-  // Función helper para obtener keys del .env
-  const getApiKeyFromEnv = (provider) => {
-    switch (provider) {
-      case 'gemini':
-        return process.env.REACT_APP_GEMINI_API_KEY;
-      case 'groq':
-        return process.env.REACT_APP_GROQ_API_KEY;
-      case 'huggingface':
-        return process.env.REACT_APP_HUGGINGFACE_API_KEY;
-      default:
-        return null;
-    }
-  };
-
-  // Actualizar cuando cambia el proveedor
+  // Cargar configuración desde variables de entorno
   useEffect(() => {
-    const envKey = getApiKeyFromEnv(currentProvider);
-    if (envKey && !apiKey) {
-      setApiKey(envKey);
+    // Verificar estado de las variables de entorno
+    const status = checkEnvKeys();
+    setEnvStatus(status);
+    
+    // Configurar proveedor inicial basado en disponibilidad
+    let initialProvider = DEFAULT_PROVIDER;
+    let initialApiKey = API_KEYS[DEFAULT_PROVIDER];
+    
+    // Si el proveedor por defecto no tiene API key, buscar uno disponible
+    if (!initialApiKey && status.available.length > 0) {
+      const firstAvailable = status.available[0].toLowerCase();
+      initialProvider = firstAvailable;
+      initialApiKey = API_KEYS[firstAvailable];
+    }
+    
+    setCurrentProvider(initialProvider);
+    setApiKey(initialApiKey || '');
+    setCurrentAgent(FREE_AI_MODELS[initialProvider] ? Object.keys(FREE_AI_MODELS[initialProvider])[0] : DEFAULT_MODEL);
+    
+    // Inicializar conversaciones vacías
+    setConversations([]);
+  }, []);
+
+  // Auto-cambiar API key cuando cambia el proveedor
+  useEffect(() => {
+    const newApiKey = API_KEYS[currentProvider] || '';
+    setApiKey(newApiKey);
+    
+    // Cambiar al primer modelo disponible del proveedor
+    const availableModels = FREE_AI_MODELS[currentProvider];
+    if (availableModels) {
+      const firstModel = Object.keys(availableModels)[0];
+      setCurrentAgent(firstModel);
     }
   }, [currentProvider]);
 
-  // Resto de tu código...
-};
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -290,6 +357,104 @@ const DevAIAgent = () => {
     checkOllamaModels();
   }, [apiKey, currentProvider]);
 
+  const checkOllamaModels = async () => {
+    try {
+      const response = await fetch('http://localhost:11434/api/tags', {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Filtrar modelos problemáticos
+        const workingModels = data.models?.filter(model => 
+          !model.name.includes('mistral') && 
+          !model.name.includes('phi')
+        ) || [];
+        setOllamaModels(workingModels);
+      }
+    } catch (error) {
+      setOllamaModels([]);
+    }
+  };
+
+  // 🔧 FUNCIONES DE DIAGNÓSTICO PARA LAS APIs
+  const testGroqAPI = async (apiKey) => {
+    try {
+      console.log('🧪 Testing Groq API...');
+      
+      // Test solo con modelos que funcionan
+      const workingModels = ['llama3-8b-8192', 'llama3-70b-8192'];
+      
+      const chatResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'Hi, just testing!' }],
+          model: workingModels[0], // Usar modelo que sabemos que funciona
+          max_tokens: 50
+        })
+      });
+      
+      if (!chatResponse.ok) {
+        const errorText = await chatResponse.text();
+        console.error('❌ Groq Chat Error:', errorText);
+        return { success: false, error: `Chat error: ${errorText}` };
+      }
+      
+      const chatData = await chatResponse.json();
+      console.log('✅ Groq chat test successful:', chatData.choices[0].message.content);
+      
+      return { success: true, message: 'Groq API funcionando correctamente' };
+      
+    } catch (error) {
+      console.error('❌ Groq Test Error:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const testHuggingFaceAPI = async (apiKey) => {
+    try {
+      console.log('🧪 Testing HuggingFace API...');
+      
+      // Test con un modelo simple y rápido
+      const response = await fetch('https://api-inference.huggingface.co/models/gpt2', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputs: 'Hello, this is a test',
+          parameters: {
+            max_length: 20,
+            temperature: 0.7
+          }
+        })
+      });
+      
+      console.log('HuggingFace Response Status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ HuggingFace Error:', errorText);
+        return { success: false, error: errorText };
+      }
+      
+      const data = await response.json();
+      console.log('✅ HuggingFace test successful:', data);
+      
+      return { success: true, message: 'HuggingFace API funcionando correctamente' };
+      
+    } catch (error) {
+      console.error('❌ HuggingFace Test Error:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // 🔧 FUNCIÓN MEJORADA PARA VERIFICAR ESTADO DE APIs
   const checkApiStatus = async () => {
     const status = {};
     
@@ -308,41 +473,51 @@ const DevAIAgent = () => {
       status.ollama = { available: false, icon: '🔴', error: 'Ollama no está ejecutándose' };
     }
     
-    // Verificar otros APIs (simulado, solo chequeamos si hay API key)
-    status.gemini = { 
-      available: !!apiKey && currentProvider === 'gemini', 
-      icon: apiKey && currentProvider === 'gemini' ? '🟢' : '🟡',
-      error: !apiKey ? 'API Key requerida' : null
-    };
-    
-    status.groq = { 
-      available: !!apiKey && currentProvider === 'groq', 
-      icon: apiKey && currentProvider === 'groq' ? '🟢' : '🟡',
-      error: !apiKey ? 'API Key requerida' : null
-    };
-    
-    status.huggingface = { 
-      available: !!apiKey && currentProvider === 'huggingface', 
-      icon: apiKey && currentProvider === 'huggingface' ? '🟢' : '🟡',
-      error: !apiKey ? 'API Key requerida' : null
-    };
-    
-    setApiStatus(status);
-  };
-
-  const checkOllamaModels = async () => {
+    // Test real de Gemini
     try {
-      const response = await fetch('http://localhost:11434/api/tags', {
-        method: 'GET',
-        signal: AbortSignal.timeout(3000)
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setOllamaModels(data.models || []);
+      if (API_KEYS.gemini) {
+        const geminiTest = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEYS.gemini}`, {
+          method: 'GET'
+        });
+        
+        if (geminiTest.ok) {
+          status.gemini = { available: true, icon: '🟢', error: null };
+        } else {
+          status.gemini = { available: false, icon: '🔴', error: 'API Key inválida' };
+        }
+      } else {
+        status.gemini = { available: false, icon: '🟡', error: 'API Key no configurada' };
       }
     } catch (error) {
-      setOllamaModels([]);
+      status.gemini = { available: false, icon: '🟡', error: 'Error de conexión' };
     }
+    
+    // Test real de Groq
+    if (API_KEYS.groq) {
+      const groqTest = await testGroqAPI(API_KEYS.groq);
+      status.groq = {
+        available: groqTest.success,
+        icon: groqTest.success ? '🟢' : '🔴',
+        error: groqTest.success ? null : groqTest.error
+      };
+    } else {
+      status.groq = { available: false, icon: '🟡', error: 'API Key no configurada' };
+    }
+    
+    // Test real de HuggingFace
+    if (API_KEYS.huggingface) {
+      const hfTest = await testHuggingFaceAPI(API_KEYS.huggingface);
+      status.huggingface = {
+        available: hfTest.success,
+        icon: hfTest.success ? '🟢' : '🔴',
+        error: hfTest.success ? null : hfTest.error
+      };
+    } else {
+      status.huggingface = { available: false, icon: '🟡', error: 'API Key no configurada' };
+    }
+    
+    console.log('📊 API Status Report:', status);
+    setApiStatus(status);
   };
 
   // Generar respuesta inteligente simulada cuando fallan las APIs
@@ -580,8 +755,18 @@ CONSULTA: ${currentInput}
     try {
       // Verificar si necesita API key
       const needsKey = API_LIMITS[currentProvider].needsApiKey;
-      if (needsKey && !apiKey) {
-        throw new Error(`API Key requerida para ${currentProvider}. Obtén una gratis en: ${API_LIMITS[currentProvider].setup}`);
+      const currentApiKey = API_KEYS[currentProvider];
+      
+      if (needsKey && !currentApiKey) {
+        throw new Error(`⚠️ API Key no configurada para ${currentProvider.toUpperCase()}
+
+📝 **Pasos para configurar:**
+1. Crea un archivo .env en la raíz de tu proyecto
+2. Agrega: REACT_APP_${currentProvider.toUpperCase()}_API_KEY=tu_key_aqui
+3. Obtén tu API key gratis en: ${API_LIMITS[currentProvider].setup}
+4. Reinicia el servidor (npm start)
+
+💡 **O cambia a un proveedor ya configurado en Configuración`);
       }
 
       // Simular proceso de pensamiento específico por proveedor
@@ -593,7 +778,7 @@ CONSULTA: ${currentInput}
           '✨ Finalizando análisis...'
         ],
         ollama: [
-          '🏠 Conectando con modelo local...',
+        '🏠 Conectando con modelo local...',
           '⚡ Procesando en tu hardware...',
           '🔥 Ejecutando modelo localmente...',
           '✨ Respuesta lista...'
@@ -642,7 +827,7 @@ CONSULTA: ${currentInput}
       let fallbackProvider = null;
       
       // Intentar Gemini si falló otro
-      if (currentProvider !== 'gemini' && apiKey) {
+      if (currentProvider !== 'gemini' && API_KEYS.gemini) {
         fallbackProvider = 'gemini';
       }
       // Intentar Ollama si está disponible (no necesita API key)
@@ -655,7 +840,8 @@ CONSULTA: ${currentInput}
           setThinkingProcess(`❌ Error en ${currentProvider}, intentando con ${fallbackProvider}...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          const fallbackResponse = await callFreeAIAPI(contextualMessages, apiKey, fallbackProvider);
+          const fallbackApiKey = API_KEYS[fallbackProvider];
+          const fallbackResponse = await callFreeAIAPI(contextualMessages, fallbackApiKey, fallbackProvider);
           
           const aiResponse = {
             role: 'assistant',
@@ -1282,3 +1468,6 @@ CONSULTA: ${currentInput}
       />
     </div>
   );
+};
+
+export default DevAIAgent;
