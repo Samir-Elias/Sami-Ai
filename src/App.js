@@ -1,5 +1,5 @@
 // ============================================
-// 🎯 DEVAI AGENT - APLICACIÓN PRINCIPAL MODULAR
+// 🎯 DEVAI AGENT - APLICACIÓN PRINCIPAL CON CHAT CENTRADO
 // ============================================
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -43,7 +43,7 @@ const DevAIAgent = () => {
   // Estados de UI
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false); // ✨ Cambiado a false para mostrar chat
   const [currentProject, setCurrentProject] = useState(null);
   
   // Referencias
@@ -88,12 +88,12 @@ const DevAIAgent = () => {
     setApiKey(newApiKey);
   }, [currentProvider]);
 
-  // Ocultar welcome cuando hay mensajes
+  // ✨ Solo ocultar welcome al enviar primer mensaje
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && showWelcome) {
       setShowWelcome(false);
     }
-  }, [messages.length]);
+  }, [messages.length, showWelcome]);
 
   // ═══════════════════════════════════════════
   // 📨 FUNCIONES DE MENSAJERÍA
@@ -111,7 +111,7 @@ const DevAIAgent = () => {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-    setShowWelcome(false);
+    setShowWelcome(false); // Ocultar welcome al enviar
 
     // Preparar contexto del proyecto si existe
     let contextualMessages = [...messages, userMessage];
@@ -351,6 +351,13 @@ CONSULTA: ${query}`;
     input.click();
   };
 
+  /**
+   * ✨ Mostrar welcome como overlay
+   */
+  const handleShowWelcome = () => {
+    setShowWelcome(true);
+  };
+
   // ═══════════════════════════════════════════
   // 🎨 RENDERIZADO PRINCIPAL
   // ═══════════════════════════════════════════
@@ -394,7 +401,7 @@ CONSULTA: ${query}`;
         onNewConversation={() => {
           startNewConversation();
           setMessages([]);
-          setShowWelcome(true);
+          setShowWelcome(false); // Mantener chat visible
           setShowSidebar(false);
         }}
         onLoadConversation={(conv) => {
@@ -429,42 +436,114 @@ CONSULTA: ${query}`;
         transition: 'margin-right 0.3s ease',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        position: 'relative'
       }}>
-        {/* Contenido condicional */}
-        {needsSetup ? (
-          /* 🔧 Pantalla de configuración inicial */
-          <SetupWelcomeScreen
-            isMobile={isMobile}
-            onSettingsOpen={() => setShowSettings(true)}
-            availableProviders={['gemini', 'groq', 'huggingface', 'ollama']}
-          />
-        ) : showWelcome && messages.length === 0 ? (
-          /* 🎉 Pantalla de bienvenida */
-          <WelcomeScreen
-            isMobile={isMobile}
-            onFileUpload={() => fileInputRef.current?.click()}
-            onSettingsOpen={() => setShowSettings(true)}
-            hasApiKey={!!apiKey}
-            currentProvider={currentProvider}
-          />
-        ) : (
-          /* 💬 Chat principal */
-          <ChatContainer
-            messages={messages}
-            input={input}
-            isLoading={isLoading}
-            thinkingProcess={thinkingProcess}
-            currentProject={currentProject}
-            isMobile={isMobile}
-            onInputChange={setInput}
-            onSendMessage={handleSendMessage}
-            onFileUpload={handleFileUpload}
-          />
+        {/* ✨ Chat siempre visible con overlays condicionales */}
+        <ChatContainer
+          messages={messages}
+          input={input}
+          isLoading={isLoading}
+          thinkingProcess={thinkingProcess}
+          currentProject={currentProject}
+          isMobile={isMobile}
+          onInputChange={setInput}
+          onSendMessage={handleSendMessage}
+          onFileUpload={handleFileUpload}
+        />
+
+        {/* ✨ Welcome como overlay cuando se solicita */}
+        {showWelcome && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.95)',
+            backdropFilter: 'blur(10px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            animation: 'fadeIn 0.3s ease'
+          }}>
+            <div style={{
+              position: 'relative',
+              maxWidth: '90%',
+              maxHeight: '90%',
+              overflow: 'auto'
+            }}>
+              {/* Botón de cerrar */}
+              <button
+                onClick={() => setShowWelcome(false)}
+                style={{
+                  position: 'absolute',
+                  top: isMobile ? '10px' : '20px',
+                  right: isMobile ? '10px' : '20px',
+                  background: 'rgba(55, 65, 81, 0.8)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#f3f4f6',
+                  fontSize: '20px',
+                  zIndex: 1001,
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(75, 85, 99, 0.9)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(55, 65, 81, 0.8)'}
+              >
+                ×
+              </button>
+
+              {/* Welcome content */}
+              <WelcomeScreen
+                isMobile={isMobile}
+                onFileUpload={() => {
+                  fileInputRef.current?.click();
+                  setShowWelcome(false);
+                }}
+                onSettingsOpen={() => {
+                  setShowSettings(true);
+                  setShowWelcome(false);
+                }}
+                hasApiKey={!!apiKey}
+                currentProvider={currentProvider}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ✨ Setup overlay para cuando no hay API (obligatorio) */}
+        {needsSetup && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.98)',
+            backdropFilter: 'blur(15px)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <SetupWelcomeScreen
+              isMobile={isMobile}
+              onSettingsOpen={() => setShowSettings(true)}
+              availableProviders={['gemini', 'groq', 'huggingface', 'ollama']}
+            />
+          </div>
         )}
       </div>
 
-      {/* 📁 Input de archivos oculto */}
+      {/* 📁 Input de archivos oculto global */}
       <input
         ref={fileInputRef}
         type="file"
@@ -474,6 +553,14 @@ CONSULTA: ${query}`;
         style={{ display: 'none' }}
         webkitdirectory=""
       />
+
+      {/* ✨ CSS para animaciones */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 };
