@@ -2448,4 +2448,288 @@ CONSULTA: ${currentInput}
 );
 };
 
-export default DevAIAgent;
+export default DevAIAgent;{/* Input Area - Sticky y responsive */}
+<div style={{
+  position: 'sticky',
+  bottom: 0,
+  left: 0,
+  right: 0,
+  borderTop: '1px solid #374151',
+  backgroundColor: 'rgba(31, 41, 55, 0.95)',
+  backdropFilter: 'blur(12px)', 
+  padding: isMobile ? '12px' : '16px',
+  zIndex: 30,
+  transform: showSettings ? 'translateY(100%)' : 'translateY(0)',
+  transition: 'transform 0.3s ease',
+  boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.15)'
+}}>
+  <div style={{ 
+    maxWidth: showPreview && !isMobile ? '50%' : '100%', 
+    margin: '0 auto',
+    transition: 'max-width 0.3s ease'
+  }}>
+    <div style={{ display: 'flex', gap: isMobile ? '8px' : '16px', alignItems: 'end' }}>
+      <div style={{ flex: 1 }}>
+        {/* Botones superiores - solo en desktop o cuando no hay proyecto */}
+        {(!isMobile || !currentProject) && (
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            marginBottom: '8px',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                padding: isMobile ? '6px' : '8px',
+                backgroundColor: 'rgba(55, 65, 81, 0.5)',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: isMobile ? '12px' : '14px'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#374151'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.5)'}
+              title="Subir archivos del proyecto"
+            >
+              <Upload style={{ width: isMobile ? '14px' : '16px', height: isMobile ? '14px' : '16px' }} />
+              {!isMobile && 'Subir'}
+            </button>
+            
+            {currentProject && (
+              <button
+                onClick={() => setCurrentProject(null)}
+                style={{
+                  padding: isMobile ? '4px 8px' : '6px 12px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                  color: '#fca5a5',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: isMobile ? '11px' : '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
+              >
+                {isMobile ? '🗑️' : 'Limpiar Proyecto'}
+              </button>
+            )}
+            
+            {/* Botón rápido de configuración en móvil */}
+            {isMobile && (
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                style={{
+                  padding: '6px',
+                  backgroundColor: showSettings ? '#2563eb' : 'rgba(55, 65, 81, 0.5)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  position: 'relative'
+                }}
+                title="Configuración"
+              >
+                <Settings style={{ width: '14px', height: '14px' }} />
+                {!apiKey && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    width: '6px',
+                    height: '6px',
+                    backgroundColor: '#eab308',
+                    borderRadius: '50%'
+                  }}></span>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+        
+        {/* Textarea principal */}
+        <div style={{ position: 'relative' }}>
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            onFocus={() => setShowMobileKeyboard(true)}
+            onBlur={() => setShowMobileKeyboard(false)}
+            placeholder={currentProject 
+              ? `Pregunta sobre "${currentProject.name}"...`
+              : isMobile 
+                ? "Pregunta sobre desarrollo..."
+                : "Haz una pregunta sobre desarrollo, sube archivos, o pide ayuda con código..."
+            }
+            style={{
+              width: '100%',
+              padding: isMobile ? '10px 12px' : '12px 16px',
+              paddingRight: isMobile ? '45px' : '16px', // Espacio para botón en móvil
+              backgroundColor: '#374151',
+              border: '1px solid #4b5563',
+              borderRadius: '12px',
+              color: 'white',
+              fontSize: isMobile ? '16px' : '14px', // 16px previene zoom en iOS
+              outline: 'none',
+              resize: 'none',
+              minHeight: isMobile ? '44px' : '50px', // Altura táctil mínima
+              maxHeight: isMobile ? '100px' : '120px',
+              fontFamily: 'inherit',
+              lineHeight: '1.4'
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+            onBlur={(e) => e.target.style.borderColor = '#4b5563'}
+            rows={isMobile ? 1 : 2}
+          />
+          
+          {/* Botón de envío integrado en móvil */}
+          {isMobile && (
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading || !input.trim()}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                padding: '8px',
+                backgroundColor: isLoading || !input.trim() ? '#6b7280' : '#2563eb',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Send style={{ 
+                width: '16px', 
+                height: '16px',
+                transform: isLoading ? 'scale(0.9)' : 'scale(1)',
+                transition: 'transform 0.2s'
+              }} />
+            </button>
+          )}
+        </div>
+      </div>
+      
+      {/* Botón de envío separado en desktop */}
+      {!isMobile && (
+        <button
+          onClick={handleSendMessage}
+          disabled={isLoading || !input.trim()}
+          style={{
+            padding: '12px',
+            backgroundColor: isLoading || !input.trim() ? '#4b5563' : '#2563eb',
+            border: 'none',
+            borderRadius: '12px',
+            color: 'white',
+            cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s',
+            minWidth: '48px',
+            height: '50px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onMouseEnter={(e) => {
+            if (!isLoading && input.trim()) {
+              e.target.style.backgroundColor = '#1d4ed8';
+              e.target.style.transform = 'scale(1.05)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isLoading && input.trim()) {
+              e.target.style.backgroundColor = '#2563eb';
+              e.target.style.transform = 'scale(1)';
+            }
+          }}
+        >
+          <Send style={{ 
+            width: '20px', 
+            height: '20px',
+            transform: isLoading ? 'scale(0.9)' : 'scale(1)',
+            transition: 'transform 0.2s'
+          }} />
+        </button>
+      )}
+    </div>
+    
+    {/* Información inferior - solo en desktop */}
+    {!isMobile && (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: '8px',
+        fontSize: '12px',
+        color: '#9ca3af'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span>Enter para enviar • Shift+Enter nueva línea</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{
+              width: '8px',
+              height: '8px',
+              backgroundColor: apiKey ? '#10b981' : '#eab308',
+              borderRadius: '50%'
+            }}></span>
+            <span>{API_LIMITS[currentProvider]?.icon} {currentProvider.toUpperCase()}</span>
+          </div>
+        </div>
+        
+        {apiKey && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <CheckCircle style={{ width: '12px', height: '12px', color: '#10b981' }} />
+            <span>API configurada</span>
+          </div>
+        )}
+      </div>
+    )}
+    
+    {/* Indicador de estado en móvil */}
+    {isMobile && (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: '6px',
+        fontSize: '11px',
+        color: '#6b7280',
+        gap: '8px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{
+            width: '6px',
+            height: '6px',
+            backgroundColor: apiKey ? '#10b981' : '#eab308',
+            borderRadius: '50%'
+          }}></span>
+          <span>{API_LIMITS[currentProvider]?.icon} {currentProvider.toUpperCase()}</span>
+        </div>
+        {currentProject && (
+          <>
+            <span>•</span>
+            <span>📁 {currentProject.files.length} archivos</span>
+          </>
+        )}
+      </div>
+    )}
+  </div>
+</div>
