@@ -1,0 +1,570 @@
+// ============================================
+// 📋 SIDEBAR COMPONENT
+// ============================================
+
+import React, { useState } from 'react';
+import { 
+  X, 
+  Plus, 
+  MessageSquare, 
+  Clock, 
+  Trash2, 
+  Search,
+  Download,
+  Upload,
+  Filter,
+  MoreVertical
+} from 'lucide-react';
+
+/**
+ * Componente Sidebar para navegación y conversaciones
+ * @param {Object} props - Props del componente
+ */
+const Sidebar = ({
+  isVisible,
+  isMobile,
+  conversations,
+  currentConversationId,
+  onClose,
+  onNewConversation,
+  onLoadConversation,
+  onDeleteConversation,
+  onExportConversations,
+  onImportConversations
+}) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [filterBy, setFilterBy] = useState('all'); // 'all', 'today', 'week', 'month'
+
+  // Filtrar conversaciones
+  const filteredConversations = conversations.filter(conv => {
+    // Filtro por búsqueda
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchesSearch = conv.title.toLowerCase().includes(term) ||
+                           conv.preview.toLowerCase().includes(term);
+      if (!matchesSearch) return false;
+    }
+
+    // Filtro por fecha
+    if (filterBy !== 'all') {
+      const now = new Date();
+      const convDate = new Date(conv.updatedAt);
+      const daysDiff = Math.floor((now - convDate) / (1000 * 60 * 60 * 24));
+
+      switch (filterBy) {
+        case 'today':
+          return daysDiff === 0;
+        case 'week':
+          return daysDiff <= 7;
+        case 'month':
+          return daysDiff <= 30;
+        default:
+          return true;
+      }
+    }
+
+    return true;
+  });
+
+  if (!isVisible) return null;
+
+  return (
+    <>
+      {/* Overlay para móvil */}
+      {isMobile && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 40
+          }}
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar principal */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        width: isMobile ? '100%' : '320px',
+        backgroundColor: 'rgba(31, 41, 55, 0.95)',
+        backdropFilter: 'blur(12px)',
+        borderRight: '1px solid rgba(55, 65, 81, 0.5)',
+        transform: isVisible ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.3s ease',
+        zIndex: 50,
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {/* Header */}
+        <SidebarHeader 
+          isMobile={isMobile}
+          showSearch={showSearch}
+          searchTerm={searchTerm}
+          onClose={onClose}
+          onSearchToggle={() => setShowSearch(!showSearch)}
+          onSearchChange={setSearchTerm}
+        />
+
+        {/* Controls */}
+        <SidebarControls
+          filterBy={filterBy}
+          onFilterChange={setFilterBy}
+          onNewConversation={onNewConversation}
+          onExport={onExportConversations}
+          onImport={onImportConversations}
+        />
+
+        {/* Conversations List */}
+        <ConversationsList
+          conversations={filteredConversations}
+          currentConversationId={currentConversationId}
+          searchTerm={searchTerm}
+          onLoadConversation={onLoadConversation}
+          onDeleteConversation={onDeleteConversation}
+        />
+
+        {/* Footer Stats */}
+        <SidebarFooter conversations={conversations} />
+      </div>
+    </>
+  );
+};
+
+/**
+ * Header del sidebar
+ */
+const SidebarHeader = ({ 
+  isMobile, 
+  showSearch, 
+  searchTerm, 
+  onClose, 
+  onSearchToggle, 
+  onSearchChange 
+}) => (
+  <div style={{
+    padding: '16px',
+    borderBottom: '1px solid rgba(55, 65, 81, 0.5)',
+    flexShrink: 0
+  }}>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: showSearch ? '12px' : '0'
+    }}>
+      <h2 style={{ 
+        fontSize: isMobile ? '18px' : '20px', 
+        fontWeight: 'bold', 
+        margin: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      }}>
+        💬 Conversaciones
+      </h2>
+      
+      <div style={{ display: 'flex', gap: '4px' }}>
+        <button
+          onClick={onSearchToggle}
+          style={{
+            padding: '8px',
+            background: showSearch ? '#2563eb' : 'transparent',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'background 0.2s'
+          }}
+          title="Buscar conversaciones"
+        >
+          <Search style={{ width: '16px', height: '16px' }} />
+        </button>
+        
+        <button
+          onClick={onClose}
+          style={{
+            padding: '8px',
+            background: 'transparent',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'background 0.2s'
+          }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.5)'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+        >
+          <X style={{ width: '20px', height: '20px' }} />
+        </button>
+      </div>
+    </div>
+
+    {/* Barra de búsqueda */}
+    {showSearch && (
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder="Buscar conversaciones..."
+        style={{
+          width: '100%',
+          padding: '8px 12px',
+          backgroundColor: 'rgba(55, 65, 81, 0.5)',
+          border: '1px solid #4b5563',
+          borderRadius: '8px',
+          color: 'white',
+          fontSize: '14px',
+          outline: 'none'
+        }}
+        onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+        onBlur={(e) => e.target.style.borderColor = '#4b5563'}
+        autoFocus
+      />
+    )}
+  </div>
+);
+
+/**
+ * Controles del sidebar
+ */
+const SidebarControls = ({ 
+  filterBy, 
+  onFilterChange, 
+  onNewConversation, 
+  onExport, 
+  onImport 
+}) => (
+  <div style={{ padding: '16px', borderBottom: '1px solid rgba(55, 65, 81, 0.5)' }}>
+    {/* Botón nueva conversación */}
+    <button
+      onClick={onNewConversation}
+      style={{
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '12px',
+        backgroundColor: '#2563eb',
+        border: 'none',
+        borderRadius: '8px',
+        color: 'white',
+        cursor: 'pointer',
+        transition: 'background 0.2s',
+        marginBottom: '12px',
+        fontSize: '14px',
+        fontWeight: '500'
+      }}
+      onMouseEnter={(e) => e.target.style.backgroundColor = '#1d4ed8'}
+      onMouseLeave={(e) => e.target.style.backgroundColor = '#2563eb'}
+    >
+      <Plus style={{ width: '16px', height: '16px' }} />
+      Nueva Conversación
+    </button>
+
+    {/* Filtros y acciones */}
+    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      {/* Filtro por fecha */}
+      <select
+        value={filterBy}
+        onChange={(e) => onFilterChange(e.target.value)}
+        style={{
+          flex: 1,
+          padding: '6px 8px',
+          backgroundColor: 'rgba(55, 65, 81, 0.5)',
+          border: '1px solid #4b5563',
+          borderRadius: '6px',
+          color: 'white',
+          fontSize: '12px',
+          cursor: 'pointer'
+        }}
+      >
+        <option value="all">Todas</option>
+        <option value="today">Hoy</option>
+        <option value="week">Esta semana</option>
+        <option value="month">Este mes</option>
+      </select>
+
+      {/* Botón de opciones */}
+      <OptionsDropdown onExport={onExport} onImport={onImport} />
+    </div>
+  </div>
+);
+
+/**
+ * Dropdown de opciones
+ */
+const OptionsDropdown = ({ onExport, onImport }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          padding: '6px',
+          backgroundColor: 'rgba(55, 65, 81, 0.5)',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          color: 'white',
+          transition: 'background 0.2s'
+        }}
+        title="Más opciones"
+      >
+        <MoreVertical style={{ width: '16px', height: '16px' }} />
+      </button>
+
+      {isOpen && (
+        <>
+          {/* Overlay para cerrar */}
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 5
+            }}
+            onClick={() => setIsOpen(false)}
+          />
+          
+          {/* Dropdown menu */}
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            marginTop: '4px',
+            backgroundColor: '#1f2937',
+            border: '1px solid #374151',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            zIndex: 10,
+            minWidth: '150px'
+          }}>
+            <button
+              onClick={() => {
+                onExport();
+                setIsOpen(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#374151'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+            >
+              <Download style={{ width: '14px', height: '14px' }} />
+              Exportar
+            </button>
+            
+            <button
+              onClick={() => {
+                onImport();
+                setIsOpen(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#374151'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+            >
+              <Upload style={{ width: '14px', height: '14px' }} />
+              Importar
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Lista de conversaciones
+ */
+const ConversationsList = ({ 
+  conversations, 
+  currentConversationId, 
+  searchTerm,
+  onLoadConversation, 
+  onDeleteConversation 
+}) => (
+  <div style={{ 
+    flex: 1, 
+    overflowY: 'auto', 
+    padding: '0 16px' 
+  }}>
+    {conversations.length === 0 ? (
+      <EmptyState searchTerm={searchTerm} />
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '16px' }}>
+        {conversations.map(conv => (
+          <ConversationItem
+            key={conv.id}
+            conversation={conv}
+            isActive={currentConversationId === conv.id}
+            onLoad={() => onLoadConversation(conv)}
+            onDelete={(e) => onDeleteConversation(conv.id, e)}
+          />
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+/**
+ * Item individual de conversación
+ */
+const ConversationItem = ({ conversation, isActive, onLoad, onDelete }) => (
+  <div
+    onClick={onLoad}
+    style={{
+      padding: '12px',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      transition: 'background 0.2s',
+      backgroundColor: isActive ? '#2563eb' : 'rgba(55, 65, 81, 0.5)',
+      border: isActive ? '1px solid #3b82f6' : '1px solid transparent'
+    }}
+    onMouseEnter={(e) => !isActive && (e.currentTarget.style.backgroundColor = 'rgba(55, 65, 81, 0.8)')}
+    onMouseLeave={(e) => !isActive && (e.currentTarget.style.backgroundColor = 'rgba(55, 65, 81, 0.5)')}
+  >
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h3 style={{ 
+          fontWeight: '500',
+          fontSize: '14px',
+          margin: '0 0 4px 0',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          color: isActive ? 'white' : '#f3f4f6'
+        }}>
+          {conversation.title}
+        </h3>
+        
+        <p style={{ 
+          fontSize: '12px',
+          color: isActive ? '#e2e8f0' : '#9ca3af',
+          margin: '0 0 6px 0',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }}>
+          {conversation.preview}
+        </p>
+        
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          fontSize: '11px', 
+          color: isActive ? '#cbd5e1' : '#6b7280'
+        }}>
+          <MessageSquare style={{ width: '12px', height: '12px' }} />
+          <span>{conversation.messageCount}</span>
+          <Clock style={{ width: '12px', height: '12px', marginLeft: '4px' }} />
+          <span>{new Date(conversation.updatedAt).toLocaleDateString()}</span>
+        </div>
+      </div>
+
+      <button
+        onClick={onDelete}
+        style={{
+          padding: '4px',
+          background: 'transparent',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          color: '#ef4444',
+          transition: 'background 0.2s',
+          flexShrink: 0
+        }}
+        onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+        title="Eliminar conversación"
+      >
+        <Trash2 style={{ width: '16px', height: '16px' }} />
+      </button>
+    </div>
+  </div>
+);
+
+/**
+ * Estado vacío
+ */
+const EmptyState = ({ searchTerm }) => (
+  <div style={{
+    padding: '40px 20px',
+    textAlign: 'center',
+    color: '#9ca3af'
+  }}>
+    <MessageSquare style={{ width: '48px', height: '48px', margin: '0 auto 16px', opacity: 0.5 }} />
+    <h3 style={{ fontSize: '16px', margin: '0 0 8px 0' }}>
+      {searchTerm ? 'No se encontraron conversaciones' : 'No hay conversaciones'}
+    </h3>
+    <p style={{ fontSize: '14px', margin: 0 }}>
+      {searchTerm 
+        ? 'Intenta con otros términos de búsqueda'
+        : 'Inicia una nueva conversación para comenzar'
+      }
+    </p>
+  </div>
+);
+
+/**
+ * Footer con estadísticas
+ */
+const SidebarFooter = ({ conversations }) => {
+  const totalMessages = conversations.reduce((acc, conv) => acc + conv.messageCount, 0);
+  
+  return (
+    <div style={{
+      padding: '16px',
+      borderTop: '1px solid rgba(55, 65, 81, 0.5)',
+      fontSize: '12px',
+      color: '#6b7280',
+      textAlign: 'center'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+        <div>
+          <div style={{ fontWeight: '500', color: '#9ca3af' }}>{conversations.length}</div>
+          <div>Conversaciones</div>
+        </div>
+        <div>
+          <div style={{ fontWeight: '500', color: '#9ca3af' }}>{totalMessages}</div>
+          <div>Mensajes</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Sidebar;
