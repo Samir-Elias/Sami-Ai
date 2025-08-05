@@ -245,38 +245,41 @@ const API_LIMITS = {
   }
 };
 
+// 🔄 REEMPLAZAR en tu App.js - Línea donde manejas apiKey
+
 const DevAIAgent = () => {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const [currentProject, setCurrentProject] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [currentAgent, setCurrentAgent] = useState('gemini-1.5-flash');
-  const [currentProvider, setCurrentProvider] = useState('gemini');
-  const [thinkingProcess, setThinkingProcess] = useState('');
-  const [expandedThinking, setExpandedThinking] = useState({});
-  const [showWelcome, setShowWelcome] = useState(true);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [apiStatus, setApiStatus] = useState({});
-  const [ollamaModels, setOllamaModels] = useState([]);
-  
-  // Estados para el historial de conversaciones
-  const [conversations, setConversations] = useState([]);
-  const [currentConversationId, setCurrentConversationId] = useState(null);
-  
-  const fileInputRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  // ❌ ANTES: const [apiKey, setApiKey] = useState('');
+  // ✅ DESPUÉS:
+  const [apiKey, setApiKey] = useState(() => {
+    // Intentar obtener de variables de entorno primero
+    const envKey = getApiKeyFromEnv(currentProvider);
+    return envKey || '';
+  });
 
-  // Cargar configuración guardada (usando state en memoria en lugar de localStorage)
+  // Función helper para obtener keys del .env
+  const getApiKeyFromEnv = (provider) => {
+    switch (provider) {
+      case 'gemini':
+        return process.env.REACT_APP_GEMINI_API_KEY;
+      case 'groq':
+        return process.env.REACT_APP_GROQ_API_KEY;
+      case 'huggingface':
+        return process.env.REACT_APP_HUGGINGFACE_API_KEY;
+      default:
+        return null;
+    }
+  };
+
+  // Actualizar cuando cambia el proveedor
   useEffect(() => {
-    // Inicializar con valores por defecto ya que no podemos usar localStorage
-    setConversations([]);
-    setApiKey('');
-    setCurrentProvider('gemini');
-    setCurrentAgent('gemini-1.5-flash');
-  }, []);
+    const envKey = getApiKeyFromEnv(currentProvider);
+    if (envKey && !apiKey) {
+      setApiKey(envKey);
+    }
+  }, [currentProvider]);
 
+  // Resto de tu código...
+};
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
