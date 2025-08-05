@@ -703,6 +703,48 @@ const callFreeAIAPI = async (messages, apiKey, provider = 'gemini', model = null
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
 };
+// Función para renderizar contenido de mensajes
+const renderMessageContent = (content) => {
+  const parts = content.split(/(```[\s\S]*?```)/g);
+  
+  return parts.map((part, index) => {
+    if (part.startsWith('```')) {
+      const lines = part.split('\n');
+      const language = lines[0].replace('```', '').trim();
+      const code = lines.slice(1, -1).join('\n');
+      
+      return (
+        <div key={index} style={{
+          backgroundColor: '#0f172a',
+          border: '1px solid #334155',
+          borderRadius: '8px',
+          padding: '16px',
+          margin: '8px 0',
+          fontFamily: 'Monaco, Consolas, monospace',
+          fontSize: '14px',
+          overflow: 'auto'
+        }}>
+          <div style={{
+            color: '#94a3b8',
+            fontSize: '12px',
+            marginBottom: '8px'
+          }}>
+            {language || 'code'}
+          </div>
+          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#e2e8f0' }}>
+            {code}
+          </pre>
+        </div>
+      );
+    }
+    
+    return (
+      <div key={index} style={{ whiteSpace: 'pre-wrap' }}>
+        {part}
+      </div>
+    );
+  });
+};
 
 // ============================================
 // 🔧 CONFIGURACIÓN SIMPLIFICADA
@@ -2245,89 +2287,165 @@ CONSULTA: ${currentInput}
           </div>
         </div>
 
-        {/* Input */}
-        <div className="border-t border-gray-700 bg-gray-800/50 backdrop-blur-xl p-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex gap-4 items-end">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                    title="Subir archivos del proyecto"
-                  >
-                    <Upload className="w-5 h-5" />
-                  </button>
-                  
-                  {currentProject && (
-                    <button
-                      onClick={() => setCurrentProject(null)}
-                      className="px-3 py-1 bg-red-600/20 text-red-300 rounded-lg text-sm hover:bg-red-600/30 transition-colors"
-                    >
-                      Limpiar Proyecto
-                    </button>
-                  )}
-                </div>
-                
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  placeholder={currentProject 
-                    ? `Pregunta sobre tu proyecto "${currentProject.name}"...`
-                    : "Haz una pregunta sobre desarrollo, sube archivos, o pide ayuda con código..."
-                  }
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:border-blue-500 focus:outline-none resize-none min-h-[60px] max-h-32"
-                  rows={2}
-                />
-              </div>
-              
-              <button
-                onClick={handleSendMessage}
-                disabled={isLoading || !input.trim()}
-                className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
-              >
-                <Send className={`w-5 h-5 ${isLoading ? 'animate-pulse' : ''}`} />
-              </button>
-            </div>
-            
-            <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-              <div className="flex items-center gap-4">
-                <span>Presiona Enter para enviar, Shift+Enter para nueva línea</span>
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  <span>{API_LIMITS[currentProvider].icon} {currentProvider.toUpperCase()} listo</span>
-                </div>
-              </div>
-              
-              {apiKey && (
-                <div className="flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3 text-green-400" />
-                  <span>API configurada</span>
-                </div>
-              )}
-            </div>
-          </div>
+       {/* Input */}
+<div style={{
+  borderTop: '1px solid #374151',
+  backgroundColor: 'rgba(31, 41, 55, 0.5)',
+  backdropFilter: 'blur(12px)',
+  padding: '16px'
+}}>
+  <div style={{ maxWidth: '1024px', margin: '0 auto' }}>
+    <div style={{ display: 'flex', gap: '16px', alignItems: 'end' }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              padding: '8px',
+              backgroundColor: 'rgba(55, 65, 81, 0.5)',
+              border: 'none',
+              borderRadius: '8px',
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#374151'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.5)'}
+            title="Subir archivos del proyecto"
+          >
+            <Upload style={{ width: '20px', height: '20px' }} />
+          </button>
+          
+          {currentProject && (
+            <button
+              onClick={() => setCurrentProject(null)}
+              style={{
+                padding: '4px 12px',
+                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                color: '#fca5a5',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
+            >
+              Limpiar Proyecto
+            </button>
+          )}
+        </div>
+        
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSendMessage();
+            }
+          }}
+          placeholder={currentProject 
+            ? `Pregunta sobre tu proyecto "${currentProject.name}"...`
+            : "Haz una pregunta sobre desarrollo, sube archivos, o pide ayuda con código..."
+          }
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            backgroundColor: '#374151',
+            border: '1px solid #4b5563',
+            borderRadius: '8px',
+            color: 'white',
+            fontSize: '14px',
+            outline: 'none',
+            resize: 'none',
+            minHeight: '60px',
+            maxHeight: '128px',
+            fontFamily: 'inherit'
+          }}
+          onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+          onBlur={(e) => e.target.style.borderColor = '#4b5563'}
+          rows={2}
+        />
+      </div>
+      
+      <button
+        onClick={handleSendMessage}
+        disabled={isLoading || !input.trim()}
+        style={{
+          padding: '12px',
+          backgroundColor: isLoading || !input.trim() ? '#4b5563' : '#2563eb',
+          border: 'none',
+          borderRadius: '8px',
+          color: 'white',
+          cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',
+          transition: 'all 0.2s'
+        }}
+        onMouseEnter={(e) => {
+          if (!isLoading && input.trim()) {
+            e.target.style.backgroundColor = '#1d4ed8';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isLoading && input.trim()) {
+            e.target.style.backgroundColor = '#2563eb';
+          }
+        }}
+      >
+        <Send style={{ 
+          width: '20px', 
+          height: '20px',
+          transform: isLoading ? 'scale(0.9)' : 'scale(1)',
+          transition: 'transform 0.2s'
+        }} />
+      </button>
+    </div>
+    
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: '8px',
+      fontSize: '12px',
+      color: '#9ca3af'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <span>Presiona Enter para enviar, Shift+Enter para nueva línea</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#10b981',
+            borderRadius: '50%'
+          }}></span>
+          <span>{API_LIMITS[currentProvider]?.icon} {currentProvider.toUpperCase()} listo</span>
         </div>
       </div>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept=".js,.jsx,.ts,.tsx,.py,.html,.css,.json,.md,.txt,.php,.java,.cpp,.c,.cs,.rb,.go,.rs,.swift,.kt,.dart,.vue,.svelte,.astro"
-        onChange={handleFileUpload}
-        className="hidden"
-        webkitdirectory=""
-      />
+      
+      {apiKey && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <CheckCircle style={{ width: '12px', height: '12px', color: '#10b981' }} />
+          <span>API configurada</span>
+        </div>
+      )}
     </div>
-  );
+  </div>
+</div>
+</div>
+
+{/* Hidden file input */}
+<input
+  ref={fileInputRef}
+  type="file"
+  multiple
+  accept=".js,.jsx,.ts,.tsx,.py,.html,.css,.json,.md,.txt,.php,.java,.cpp,.c,.cs,.rb,.go,.rs,.swift,.kt,.dart,.vue,.svelte,.astro"
+  onChange={handleFileUpload}
+  style={{ display: 'none' }}
+  webkitdirectory=""
+/>
+</div>
+);
 };
 
 export default DevAIAgent;
