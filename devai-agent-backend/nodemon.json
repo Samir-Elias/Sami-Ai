@@ -1,0 +1,26 @@
+{
+  "watch": [
+    "src",
+    ".env"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "src/database/migrations/",
+    "tests/",
+    "storage/uploads/",
+    "storage/temp/",
+    "storage/logs/"
+  ],
+  "env": {
+    "NODE_ENV": "development",
+    "DEBUG": "devai:*"
+  },
+  "delay": 1000,
+  "verbose": true,
+  "events": {
+    "start": "clear && echo '🚀 DevAI Backend iniciando...'",
+    "restart": "echo '🔄 Reiniciando servidor...'",
+    "crash": "echo '💥 Servidor crasheó, reiniciando...'",
+    "exit": "echo '👋 DevAI Backend detenido'"
+  }
+}

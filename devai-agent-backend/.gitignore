@@ -1,0 +1,275 @@
+# ============================================
+# 🚀 DEVAI AGENT BACKEND - GITIGNORE
+# ============================================
+
+# 🔒 Secrets y Configuración
+.env
+.env.local
+.env.production
+.env.test
+*.pem
+*.key
+*.p12
+config/secrets.js
+
+# ============================================
+# 📦 Node.js
+# ============================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# ============================================
+# 📁 Uploads y Storage
+# ============================================
+
+# User uploads
+storage/uploads/*
+!storage/uploads/.gitkeep
+
+# Temporary files
+storage/temp/*
+!storage/temp/.gitkeep
+
+# Logs
+storage/logs/*
+!storage/logs/.gitkeep
+*.log
+
+# Backups
+storage/backups/*
+!storage/backups/.gitkeep
+
+# Cache
+.cache/
+*.cache
+
+# ============================================
+# 🗄️ Base de Datos
+# ============================================
+
+# SQLite (si se usa)
+*.sqlite
+*.sqlite3
+*.db
+
+# PostgreSQL dumps
+*.sql
+*.dump
+
+# Prisma
+.env.local
+
+# ============================================
+# 🐳 Docker
+# ============================================
+
+# Docker volumes
+docker-data/
+postgres-data/
+redis-data/
+
+# Docker logs
+docker-compose.override.yml
+
+# ============================================
+# 🔧 IDEs y Editores
+# ============================================
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# WebStorm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+
+# ============================================
+# 🖥️ Sistema Operativo
+# ============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Linux
+*~
+.nfs*
+
+# ============================================
+# 🧪 Testing
+# ============================================
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Test results
+test-results.xml
+junit.xml
+
+# ============================================
+# 📊 Build y Deploy
+# ============================================
+
+# Build artifacts
+dist/
+build/
+out/
+
+# Deployment artifacts
+deploy/
+*.tgz
+*.tar.gz
+
+# PM2
+ecosystem.config.js.bak
+
+# ============================================
+# 🔍 Análisis y Profiling
+# ============================================
+
+# ESLint cache
+.eslintcache
+
+# Prettier cache
+.prettiercache
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Performance profiling
+*.prof
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot
+
+# ============================================
+# 📦 Package Managers
+# ============================================
+
+# Yarn
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# NPM
+.npm
+.npmrc
+
+# PNPM
+.pnpm-debug.log*
+
+# ============================================
+# 🌐 Serverless
+# ============================================
+
+# Serverless Framework
+.serverless/
+.serverless_nextjs/
+.serverless_plugins/
+
+# Vercel
+.vercel
+
+# Netlify
+.netlify
+
+# ============================================
+# 🔧 Herramientas
+# ============================================
+
+# Storybook
+storybook-static/
+
+# Local env files
+.env*.local
+
+# Turbo
+.turbo
+
+# ============================================
+# 📸 Media y Assets
+# ============================================
+
+# Large media files
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.flv
+
+# Image originals
+*.psd
+*.ai
+*.sketch
+
+# ============================================
+# 🚨 Archivos de Ejemplo a Mantener
+# ============================================
+
+# Keep example files
+!.env.example
+!storage/*/.gitkeep
+!docs/examples/
+!tests/fixtures/

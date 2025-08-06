@@ -1,0 +1,347 @@
+// ============================================
+// 🗄️ DEVAI AGENT - PRISMA SCHEMA
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 👤 USUARIOS
+// ============================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String?  @unique
+  name      String?
+  avatar    String?
+  
+  // Autenticación
+  password  String
+  emailVerified Boolean @default(false)
+  emailVerificationToken String?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  
+  // Configuración
+  preferences Json @default("{}")
+  settings    Json @default("{}")
+  timezone    String @default("America/Argentina/Mendoza")
+  language    String @default("es")
+  
+  // APIs del usuario
+  apiKeys     ApiKey[]
+  
+  // Contenido del usuario
+  conversations Conversation[]
+  projects      Project[]
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLoginAt DateTime?
+  isActive  Boolean  @default(true)
+  
+  // Índices
+  @@map("users")
+}
+
+// ============================================
+// 🔑 API KEYS
+// ============================================
+
+model ApiKey {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  provider String // 'gemini', 'groq', 'huggingface', 'openai'
+  keyHash  String // Hash de la API key (nunca almacenar en plain text)
+  name     String? // Nombre descriptivo dado por el usuario
+  
+  // Configuración
+  isActive Boolean @default(true)
+  isDefault Boolean @default(false)
+  
+  // Límites y uso
+  usageCount Int @default(0)
+  lastUsedAt DateTime?
+  monthlyLimit Int?
+  dailyLimit Int?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Índices
+  @@unique([userId, provider])
+  @@map("api_keys")
+}
+
+// ============================================
+// 💬 CONVERSACIONES
+// ============================================
+
+model Conversation {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title   String
+  preview String? // Resumen del primer mensaje
+  
+  // Configuración de IA
+  aiProvider String? // Provider usado predominantemente
+  aiModel    String? // Modelo usado
+  
+  // Contexto del proyecto (si aplica)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  // Mensajes
+  messages Message[]
+  
+  // Estadísticas
+  messageCount Int @default(0)
+  totalTokens  Int @default(0)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isArchived Boolean @default(false)
+  isPinned   Boolean @default(false)
+  
+  // Índices
+  @@index([userId, createdAt])
+  @@index([userId, isArchived])
+  @@map("conversations")
+}
+
+// ============================================
+// 📨 MENSAJES
+// ============================================
+
+model Message {
+  id             String @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  role    String // 'user', 'assistant', 'system'
+  content String
+  
+  // Metadata de IA
+  aiProvider String? // 'gemini', 'groq', etc.
+  aiModel    String? // Modelo específico usado
+  thinking   String? // Proceso de pensamiento (si disponible)
+  
+  // Tokens y costo
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  estimatedCost    Float?
+  
+  // Archivos adjuntos
+  attachments Json @default("[]") // Array de objetos file
+  
+  // Feedback del usuario
+  rating     Int? // 1-5 stars
+  feedback   String?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  editedAt  DateTime?
+  
+  // Índices
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// ============================================
+// 📁 PROYECTOS
+// ============================================
+
+model Project {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String
+  description String?
+  
+  // Archivos del proyecto
+  files ProjectFile[]
+  
+  // Estadísticas
+  totalFiles    Int @default(0)
+  totalSize     BigInt @default(0) // Bytes
+  totalLines    Int @default(0)
+  primaryLanguage String?
+  languages     Json @default("{}") // Objeto con conteos por lenguaje
+  
+  // Análisis
+  analysis Json @default("{}") // Resultados de análisis de código
+  
+  // Conversaciones relacionadas
+  conversations Conversation[]
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isArchived Boolean @default(false)
+  
+  // Índices
+  @@index([userId, createdAt])
+  @@map("projects")
+}
+
+// ============================================
+// 📄 ARCHIVOS DE PROYECTO
+// ============================================
+
+model ProjectFile {
+  id        String @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  name     String
+  path     String? // Ruta relativa en el proyecto
+  content  String
+  size     Int
+  type     String // Extensión del archivo
+  language String? // Lenguaje detectado
+  
+  // Análisis del archivo
+  lineCount    Int @default(0)
+  charCount    Int @default(0)
+  complexity   Int? // Complejidad ciclomática si aplica
+  dependencies Json @default("[]") // Dependencias detectadas
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Índices
+  @@index([projectId, language])
+  @@map("project_files")
+}
+
+// ============================================
+// 📊 ANALYTICS
+// ============================================
+
+model Analytics {
+  id String @id @default(cuid())
+  
+  // Información del evento
+  event     String // 'message_sent', 'file_uploaded', etc.
+  category  String // 'chat', 'project', 'ai', etc.
+  action    String // 'create', 'update', 'delete', etc.
+  
+  // Referencias
+  userId         String?
+  conversationId String?
+  projectId      String?
+  
+  // Datos del evento
+  properties Json @default("{}") // Propiedades específicas del evento
+  metadata   Json @default("{}") // Metadata adicional
+  
+  // Contexto
+  userAgent String?
+  ipAddress String?
+  
+  // Timestamp
+  createdAt DateTime @default(now())
+  
+  // Índices
+  @@index([event, createdAt])
+  @@index([userId, createdAt])
+  @@map("analytics")
+}
+
+// ============================================
+// 🔄 USAGE TRACKING
+// ============================================
+
+model Usage {
+  id String @id @default(cuid())
+  
+  userId String
+  
+  // Período de tiempo
+  date     DateTime @db.Date
+  period   String // 'daily', 'monthly', 'yearly'
+  
+  // Contadores
+  messagesCount    Int @default(0)
+  tokensUsed       Int @default(0)
+  filesUploaded    Int @default(0)
+  projectsCreated  Int @default(0)
+  apiCallsCount    Int @default(0)
+  
+  // Por proveedor de IA
+  geminiCalls      Int @default(0)
+  groqCalls        Int @default(0)
+  huggingfaceCalls Int @default(0)
+  ollamaCalls      Int @default(0)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Índices
+  @@unique([userId, date, period])
+  @@index([date, period])
+  @@map("usage")
+}
+
+// ============================================
+// 🚨 ERROR LOGS
+// ============================================
+
+model ErrorLog {
+  id String @id @default(cuid())
+  
+  // Error info
+  error     String
+  stack     String?
+  message   String
+  level     String @default("error") // 'error', 'warn', 'info'
+  
+  // Context
+  userId    String?
+  endpoint  String?
+  method    String?
+  userAgent String?
+  
+  // Request data
+  requestBody Json?
+  query       Json?
+  params      Json?
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  resolved  Boolean @default(false)
+  
+  // Índices
+  @@index([level, createdAt])
+  @@index([userId, createdAt])
+  @@map("error_logs")
+}
+
+// ============================================
+// 📋 ÍNDICES ADICIONALES
+// ============================================
+
+// Índices compuestos para consultas frecuentes
+// Ya están definidos arriba con @@index
+
+// Índices de texto completo (requiere configuración adicional en PostgreSQL)
+// Se pueden agregar manualmente después de la migración
