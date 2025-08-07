@@ -2,9 +2,9 @@
 // 🚦 RATE LIMITING MIDDLEWARE
 // ============================================
 
-import rateLimit from 'express-rate-limit';
-import { cache } from '../config/redis.js';
-import { log } from '../config/logger.js';
+const rateLimit = require('express-rate-limit');
+const { cache } = require('../config/redis');
+const logger = require('../config/logger');
 
 /**
  * 🔧 Configuración base de rate limiting
@@ -23,7 +23,7 @@ const rateLimitConfig = {
   
   // Función para manejar límite excedido
   handler: (req, res) => {
-    log.security('Rate limit exceeded', {
+    logger.warn('Rate limit exceeded', {
       ip: req.ip,
       userId: req.user?.id,
       userAgent: req.get('User-Agent'),
@@ -67,7 +67,7 @@ function createRedisStore() {
           resetTime: Date.now() + rateLimitConfig.windowMs
         };
       } catch (error) {
-        log.error('Error in Redis rate limit store', { error: error.message });
+        logger.error('Error in Redis rate limit store', { error: error.message });
         // Fallback: permitir la request si hay error con Redis
         return { totalHits: 1, resetTime: Date.now() + rateLimitConfig.windowMs };
       }
@@ -77,7 +77,7 @@ function createRedisStore() {
       try {
         await cache.incr(key, -1);
       } catch (error) {
-        log.error('Error decrementing rate limit counter', { error: error.message });
+        logger.error('Error decrementing rate limit counter', { error: error.message });
       }
     },
     
@@ -85,7 +85,7 @@ function createRedisStore() {
       try {
         await cache.del(key);
       } catch (error) {
-        log.error('Error resetting rate limit key', { error: error.message });
+        logger.error('Error resetting rate limit key', { error: error.message });
       }
     }
   };
@@ -96,7 +96,7 @@ function createRedisStore() {
  */
 
 // Rate limiter general para toda la API
-export const generalRateLimit = rateLimit({
+const generalRateLimit = rateLimit({
   ...rateLimitConfig,
   max: 100, // 100 requests por 15 minutos
   message: {
@@ -107,7 +107,7 @@ export const generalRateLimit = rateLimit({
 });
 
 // Rate limiter estricto para autenticación
-export const authRateLimit = rateLimit({
+const authRateLimit = rateLimit({
   ...rateLimitConfig,
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 5, // Solo 5 intentos de login por IP cada 15 minutos
@@ -118,7 +118,7 @@ export const authRateLimit = rateLimit({
     code: 'AUTH_RATE_LIMIT'
   },
   handler: (req, res) => {
-    log.security('Auth rate limit exceeded', {
+    logger.warn('Auth rate limit exceeded', {
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       endpoint: req.originalUrl
@@ -134,7 +134,7 @@ export const authRateLimit = rateLimit({
 });
 
 // Rate limiter para upload de archivos
-export const uploadRateLimit = rateLimit({
+const uploadRateLimit = rateLimit({
   ...rateLimitConfig,
   windowMs: 60 * 60 * 1000, // 1 hora
   max: 10, // 10 uploads por hora
@@ -146,7 +146,7 @@ export const uploadRateLimit = rateLimit({
 });
 
 // Rate limiter para APIs de IA
-export const aiRateLimit = rateLimit({
+const aiRateLimit = rateLimit({
   ...rateLimitConfig,
   windowMs: 60 * 1000, // 1 minuto
   max: 20, // 20 requests de IA por minuto
@@ -158,7 +158,7 @@ export const aiRateLimit = rateLimit({
 });
 
 // Rate limiter para creación de recursos
-export const createRateLimit = rateLimit({
+const createRateLimit = rateLimit({
   ...rateLimitConfig,
   windowMs: 60 * 1000, // 1 minuto
   max: 30, // 30 creaciones por minuto
@@ -170,7 +170,7 @@ export const createRateLimit = rateLimit({
 });
 
 // Rate limiter muy permisivo para lectura
-export const readRateLimit = rateLimit({
+const readRateLimit = rateLimit({
   ...rateLimitConfig,
   max: 200, // 200 requests de lectura por 15 minutos
   message: {
@@ -185,7 +185,7 @@ export const readRateLimit = rateLimit({
  */
 
 // Rate limiter premium para usuarios autenticados
-export const authenticatedRateLimit = rateLimit({
+const authenticatedRateLimit = rateLimit({
   ...rateLimitConfig,
   max: (req) => {
     // Usuarios autenticados obtienen más requests
@@ -209,7 +209,7 @@ export const authenticatedRateLimit = rateLimit({
 /**
  * 🔧 Middleware personalizado para rate limiting avanzado
  */
-export const createCustomRateLimit = (options = {}) => {
+const createCustomRateLimit = (options = {}) => {
   const {
     windowMs = 15 * 60 * 1000,
     max = 100,
@@ -239,7 +239,7 @@ export const createCustomRateLimit = (options = {}) => {
         // Callback cuando se alcanza el límite
         onLimitReached(req, res);
 
-        log.security('Custom rate limit exceeded', {
+        logger.warn('Custom rate limit exceeded', {
           key: key,
           current: current,
           max: max,
@@ -274,7 +274,7 @@ export const createCustomRateLimit = (options = {}) => {
 
       next();
     } catch (error) {
-      log.error('Error in custom rate limit middleware', {
+      logger.error('Error in custom rate limit middleware', {
         error: error.message,
         ip: req.ip,
         userId: req.user?.id
@@ -289,7 +289,7 @@ export const createCustomRateLimit = (options = {}) => {
 /**
  * 🛡️ Rate limiter basado en puntos para diferentes acciones
  */
-export const pointsRateLimit = createCustomRateLimit({
+const pointsRateLimit = createCustomRateLimit({
   windowMs: 60 * 1000, // 1 minuto
   max: 100, // 100 puntos por minuto
   keyGenerator: (req) => req.user?.id || req.ip,
@@ -311,7 +311,7 @@ export const pointsRateLimit = createCustomRateLimit({
 /**
  * 🔄 Rate limiter con burst allowance
  */
-export const burstRateLimit = createCustomRateLimit({
+const burstRateLimit = createCustomRateLimit({
   windowMs: 60 * 1000, // 1 minuto
   max: 60, // 60 requests por minuto normalmente
   keyGenerator: (req) => req.user?.id || req.ip,
@@ -335,14 +335,14 @@ export const burstRateLimit = createCustomRateLimit({
 /**
  * 📊 Middleware para métricas de rate limiting
  */
-export const rateLimitMetrics = () => {
+const rateLimitMetrics = () => {
   return (req, res, next) => {
     const originalJson = res.json;
     
     res.json = function(data) {
       // Si es un error de rate limit, registrar métrica
       if (res.statusCode === 429) {
-        log.metric('rate_limit_hit', 1, {
+        logger.info('Rate limit hit', {
           endpoint: req.originalUrl,
           method: req.method,
           userId: req.user?.id || 'anonymous',
@@ -360,7 +360,7 @@ export const rateLimitMetrics = () => {
 /**
  * 🧹 Función de limpieza para keys de rate limiting
  */
-export const cleanupRateLimitKeys = async () => {
+const cleanupRateLimitKeys = async () => {
   try {
     const keys = await cache.keys('rate_limit:*');
     let cleanedCount = 0;
@@ -375,14 +375,14 @@ export const cleanupRateLimitKeys = async () => {
       }
     }
     
-    log.info('Rate limit keys cleanup completed', {
+    logger.info('Rate limit keys cleanup completed', {
       totalKeys: keys.length,
       cleanedKeys: cleanedCount
     });
     
     return cleanedCount;
   } catch (error) {
-    log.error('Error cleaning up rate limit keys', {
+    logger.error('Error cleaning up rate limit keys', {
       error: error.message
     });
     return 0;
@@ -392,7 +392,7 @@ export const cleanupRateLimitKeys = async () => {
 /**
  * 🔍 Obtener estadísticas de rate limiting
  */
-export const getRateLimitStats = async (userId = null, ip = null) => {
+const getRateLimitStats = async (userId = null, ip = null) => {
   try {
     const keys = [];
     
@@ -422,7 +422,7 @@ export const getRateLimitStats = async (userId = null, ip = null) => {
     
     return stats;
   } catch (error) {
-    log.error('Error getting rate limit stats', {
+    logger.error('Error getting rate limit stats', {
       error: error.message,
       userId: userId,
       ip: ip
@@ -434,7 +434,7 @@ export const getRateLimitStats = async (userId = null, ip = null) => {
 /**
  * 🧪 Funciones para testing
  */
-export const testHelpers = {
+const testHelpers = {
   // Resetear rate limits para testing
   resetRateLimit: async (key) => {
     try {
@@ -463,7 +463,7 @@ export const testHelpers = {
   getConfig: () => rateLimitConfig
 };
 
-export default {
+module.exports = {
   generalRateLimit,
   authRateLimit,
   uploadRateLimit,

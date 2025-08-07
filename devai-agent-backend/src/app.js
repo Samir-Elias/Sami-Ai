@@ -5,9 +5,9 @@ const compression = require('compression');
 const path = require('path');
 
 // Importar middlewares personalizados
-const { errorHandler, notFound } = require('./middleware/error');
-const { requestLogger } = require('./middleware/logger');
-const rateLimitMiddleware = require('./middleware/rateLimit');
+const { errorHandler, notFoundHandler } = require('./middleware/error');
+const { loggingMiddleware } = require('./config/logger');
+const { generalRateLimit } = require('./middleware/rateLimit');
 
 // Importar configuraciones
 const logger = require('./config/logger');
@@ -100,10 +100,10 @@ app.use('/docs', express.static(path.join(__dirname, '../docs')));
 // =================================
 
 // Logging de requests
-app.use(requestLogger);
+app.use(loggingMiddleware());
 
 // Rate limiting
-app.use(rateLimitMiddleware);
+app.use(generalRateLimit);
 
 // =================================
 // RUTAS DE SALUD Y DOCUMENTACIÓN
@@ -174,7 +174,7 @@ app.get('/', (req, res) => {
 // =================================
 
 // Middleware para rutas no encontradas
-app.use(notFound);
+app.use(notFoundHandler);
 
 // Middleware global de manejo de errores
 app.use(errorHandler);

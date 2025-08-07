@@ -1,18 +1,18 @@
 // ============================================
 // 🚨 ERROR HANDLING MIDDLEWARE
 // ============================================
-
-import { Prisma } from '@prisma/client';
-import { MulterError } from 'multer';
-import jwt from 'jsonwebtoken';
+const { Prisma } = require('@prisma/client');
+const multer = require('multer');
+const { MulterError } = multer;
+const jwt = require('jsonwebtoken');
 const { JsonWebTokenError, TokenExpiredError } = jwt;
-import { log } from '../config/logger.js';
-import { prisma } from '../config/database.js';
+const { log } = require('../config/logger');
+const { prisma } = require('../config/database');
 
 /**
  * 🚨 Clase personalizada para errores de la aplicación
  */
-export class AppError extends Error {
+class AppError extends Error {
   constructor(message, statusCode = 500, code = 'INTERNAL_ERROR', details = null) {
     super(message);
     this.name = 'AppError';
@@ -28,7 +28,7 @@ export class AppError extends Error {
 /**
  * 🔧 Crear errores comunes
  */
-export const createError = {
+const createError = {
   badRequest: (message = 'Bad Request', code = 'BAD_REQUEST', details = null) => 
     new AppError(message, 400, code, details),
   
@@ -263,7 +263,7 @@ const logErrorToDatabase = async (error, req) => {
 /**
  * 🚨 Middleware principal de manejo de errores
  */
-export const errorHandler = async (error, req, res, next) => {
+const errorHandler = async (error, req, res, next) => {
   // Si ya se envió una respuesta, pasar al siguiente middleware
   if (res.headersSent) {
     return next(error);
@@ -347,7 +347,7 @@ export const errorHandler = async (error, req, res, next) => {
 /**
  * 🚫 Middleware para rutas no encontradas
  */
-export const notFoundHandler = (req, res, next) => {
+const notFoundHandler = (req, res, next) => {
   const error = createError.notFound(
     `Ruta ${req.method} ${req.originalUrl} no encontrada`,
     'ROUTE_NOT_FOUND',
@@ -367,7 +367,7 @@ export const notFoundHandler = (req, res, next) => {
 /**
  * ⚠️ Middleware para manejar errores asíncronos
  */
-export const asyncHandler = (fn) => {
+const asyncHandler = (fn) => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
@@ -376,7 +376,7 @@ export const asyncHandler = (fn) => {
 /**
  * 🔧 Wrapper para controladores async
  */
-export const catchAsync = (fn) => {
+const catchAsync = (fn) => {
   return (req, res, next) => {
     fn(req, res, next).catch(next);
   };
@@ -385,7 +385,7 @@ export const catchAsync = (fn) => {
 /**
  * 📊 Middleware para métricas de errores
  */
-export const errorMetrics = (req, res, next) => {
+const errorMetrics = (req, res, next) => {
   const originalJson = res.json;
   
   res.json = function(data) {
@@ -408,7 +408,7 @@ export const errorMetrics = (req, res, next) => {
 /**
  * 🧹 Función para limpiar logs de errores antiguos
  */
-export const cleanupErrorLogs = async (daysOld = 30) => {
+const cleanupErrorLogs = async (daysOld = 30) => {
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
@@ -438,7 +438,7 @@ export const cleanupErrorLogs = async (daysOld = 30) => {
 /**
  * 📊 Obtener estadísticas de errores
  */
-export const getErrorStats = async (timeframe = '24h') => {
+const getErrorStats = async (timeframe = '24h') => {
   try {
     const now = new Date();
     let startDate;
@@ -518,7 +518,7 @@ export const getErrorStats = async (timeframe = '24h') => {
 /**
  * 🧪 Funciones para testing
  */
-export const testHelpers = {
+const testHelpers = {
   // Crear errores de prueba
   createTestError: (type = 'internal', message = 'Test error') => {
     return createError[type](message, `TEST_${type.toUpperCase()}_ERROR`);
@@ -544,7 +544,7 @@ export const testHelpers = {
   }
 };
 
-export default {
+module.exports = {
   AppError,
   createError,
   errorHandler,
