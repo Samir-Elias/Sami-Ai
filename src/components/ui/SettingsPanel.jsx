@@ -1,5 +1,5 @@
 // ============================================
-// ⚙️ SETTINGS PANEL COMPONENT - CON API CONTEXT
+// ⚙️ SETTINGS PANEL COMPONENT - SIN RESTRICCIONES DE BACKEND
 // ============================================
 
 import React from 'react';
@@ -8,7 +8,7 @@ import { API_LIMITS, FREE_AI_MODELS } from '../../utils/constants';
 import { useApp, useBackendStatus, useAPI } from '../../context/AppContext';
 
 /**
- * Panel de configuración con API Context integrado
+ * Panel de configuración SIN restricciones de backend
  * @param {Object} props - Props del componente
  */
 const SettingsPanel = ({
@@ -23,18 +23,22 @@ const SettingsPanel = ({
   onProviderChange,
   onModelChange
 }) => {
-  // Context integration
+  // ✅ Context con modo offline
   const { 
     isBackendConnected, 
     connectionStatus, 
     currentProject,
-    setCurrentProject
+    setCurrentProject,
+    offlineMode
   } = useApp();
   
   const { isConnected, reconnect } = useBackendStatus();
   const { api, isLoading, error } = useAPI();
 
-  // Obtener proveedores disponibles según el dispositivo
+  // ✅ Determinar si podemos usar el sistema (backend O modo offline)
+  const canUseSystem = isBackendConnected || offlineMode;
+
+  // Obtener proveedores disponibles según el dispositivo (SIN restricción de backend)
   const getAvailableProviders = () => {
     return isMobile 
       ? { gemini: API_LIMITS.gemini, groq: API_LIMITS.groq }
@@ -52,13 +56,16 @@ const SettingsPanel = ({
   if (!isVisible) return null;
 
   return (
-    <div style={{
-      borderBottom: '1px solid rgba(55, 65, 81, 0.5)',
-      backgroundColor: 'rgba(31, 41, 55, 0.95)',
-      backdropFilter: 'blur(12px)',
-      maxHeight: isMobile ? '70vh' : '450px',
-      overflowY: 'auto'
-    }}>
+    <div 
+      className="animated-settings fade-in-up"
+      style={{
+        borderBottom: '1px solid rgba(55, 65, 81, 0.5)',
+        backgroundColor: 'rgba(31, 41, 55, 0.95)',
+        backdropFilter: 'blur(12px)',
+        maxHeight: isMobile ? '70vh' : '450px',
+        overflowY: 'auto'
+      }}
+    >
       <div style={{ padding: '16px' }}>
         {/* Header con estado de backend */}
         <SettingsHeader 
@@ -67,6 +74,7 @@ const SettingsPanel = ({
           isBackendConnected={isBackendConnected}
           connectionStatus={connectionStatus}
           onReconnect={reconnect}
+          offlineMode={offlineMode}
         />
 
         {/* Backend Connection Status */}
@@ -76,6 +84,7 @@ const SettingsPanel = ({
           isLoading={isLoading}
           error={error}
           onReconnect={reconnect}
+          offlineMode={offlineMode}
         />
 
         {/* Project Settings */}
@@ -84,24 +93,24 @@ const SettingsPanel = ({
           setCurrentProject={setCurrentProject}
         />
 
-        {/* Provider Selection */}
+        {/* ✅ Provider Selection - SIN RESTRICCIONES */}
         <ProviderSelection
           availableProviders={getAvailableProviders()}
           currentProvider={currentProvider}
           isMobile={isMobile}
           apiStatus={apiStatus}
           onProviderChange={onProviderChange}
-          isBackendConnected={isBackendConnected}
+          canUseSystem={canUseSystem} // ✅ No depende solo del backend
         />
 
-        {/* Model Selection */}
+        {/* ✅ Model Selection - SIN RESTRICCIONES */}
         <ModelSelection
           availableModels={getAvailableModels()}
           currentModel={currentModel}
           currentProvider={currentProvider}
           isMobile={isMobile}
           onModelChange={onModelChange}
-          isBackendConnected={isBackendConnected}
+          canUseSystem={canUseSystem} // ✅ No depende solo del backend
         />
 
         {/* API Key Status */}
@@ -109,7 +118,7 @@ const SettingsPanel = ({
           provider={currentProvider}
           hasApiKey={!!apiKey}
           apiStatus={apiStatus[currentProvider]}
-          isBackendConnected={isBackendConnected}
+          canUseSystem={canUseSystem}
         />
 
         {/* Device & Performance Info */}
@@ -120,11 +129,13 @@ const SettingsPanel = ({
           <LivePreviewInfo liveCodeBlocks={liveCodeBlocks} />
         )}
 
-        {/* Quick Tips */}
+        {/* Quick Tips - ACTUALIZADOS */}
         <QuickTips 
           currentProvider={currentProvider} 
           isMobile={isMobile}
           isBackendConnected={isBackendConnected}
+          offlineMode={offlineMode}
+          canUseSystem={canUseSystem}
         />
       </div>
     </div>
@@ -132,34 +143,41 @@ const SettingsPanel = ({
 };
 
 /**
- * Header del panel de configuración con estado de backend
+ * Header del panel de configuración - MEJORADO
  */
 const SettingsHeader = ({ 
   onClose, 
   isMobile, 
   isBackendConnected, 
   connectionStatus,
-  onReconnect 
+  onReconnect,
+  offlineMode 
 }) => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '20px'
-  }}>
+  <div 
+    className="animated-card"
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: '20px'
+    }}
+  >
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-      <h3 style={{ 
-        fontSize: isMobile ? '18px' : '20px',
-        fontWeight: '600',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        margin: 0
-      }}>
+      <h3 
+        className="gentle-float"
+        style={{ 
+          fontSize: isMobile ? '18px' : '20px',
+          fontWeight: '600',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          margin: 0
+        }}
+      >
         ⚙️ Configuración
       </h3>
       
-      {/* Backend status indicator */}
+      {/* Backend status indicator MEJORADO */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -169,27 +187,34 @@ const SettingsHeader = ({
         borderRadius: '12px',
         backgroundColor: isBackendConnected ? 
           'rgba(16, 185, 129, 0.2)' : 
-          'rgba(239, 68, 68, 0.2)',
+          offlineMode ? 
+            'rgba(245, 158, 11, 0.2)' :
+            'rgba(239, 68, 68, 0.2)',
         border: isBackendConnected ? 
           '1px solid rgba(16, 185, 129, 0.3)' : 
-          '1px solid rgba(239, 68, 68, 0.3)'
+          offlineMode ?
+            '1px solid rgba(245, 158, 11, 0.3)' :
+            '1px solid rgba(239, 68, 68, 0.3)'
       }}>
         {isBackendConnected ? (
           <Wifi style={{ width: '12px', height: '12px', color: '#10b981' }} />
+        ) : offlineMode ? (
+          <Zap style={{ width: '12px', height: '12px', color: '#f59e0b' }} />
         ) : (
           <WifiOff style={{ width: '12px', height: '12px', color: '#ef4444' }} />
         )}
         <span style={{ 
-          color: isBackendConnected ? '#86efac' : '#fca5a5'
+          color: isBackendConnected ? '#86efac' : offlineMode ? '#fbbf24' : '#fca5a5'
         }}>
-          Backend {isBackendConnected ? 'OK' : 'OFF'}
+          {isBackendConnected ? 'Backend' : offlineMode ? 'Offline' : 'Offline'}
         </span>
       </div>
     </div>
     
     <div style={{ display: 'flex', gap: '4px' }}>
-      {!isBackendConnected && (
+      {!isBackendConnected && !offlineMode && (
         <button
+          className="interactive-button"
           onClick={onReconnect}
           style={{
             padding: '4px',
@@ -209,6 +234,7 @@ const SettingsHeader = ({
       )}
       
       <button
+        className="interactive-button"
         onClick={onClose}
         style={{
           padding: '4px',
@@ -229,24 +255,29 @@ const SettingsHeader = ({
 );
 
 /**
- * Estado de conexión del backend
+ * Estado de conexión del backend - MEJORADO
  */
 const BackendConnectionStatus = ({ 
   isConnected, 
   connectionStatus, 
   isLoading, 
   error, 
-  onReconnect 
+  onReconnect,
+  offlineMode
 }) => (
   <div style={{ marginBottom: '20px' }}>
     <div style={{
       padding: '12px',
       backgroundColor: isConnected ? 
         'rgba(16, 185, 129, 0.2)' : 
-        'rgba(239, 68, 68, 0.2)',
+        offlineMode ?
+          'rgba(245, 158, 11, 0.2)' :
+          'rgba(239, 68, 68, 0.2)',
       border: isConnected ? 
         '1px solid rgba(16, 185, 129, 0.3)' : 
-        '1px solid rgba(239, 68, 68, 0.3)',
+        offlineMode ?
+          '1px solid rgba(245, 158, 11, 0.3)' :
+          '1px solid rgba(239, 68, 68, 0.3)',
       borderRadius: '8px'
     }}>
       <div style={{ 
@@ -263,6 +294,13 @@ const BackendConnectionStatus = ({
                 Backend Conectado
               </span>
             </>
+          ) : offlineMode ? (
+            <>
+              <Zap style={{ width: '16px', height: '16px', color: '#f59e0b' }} />
+              <span style={{ color: '#fbbf24', fontSize: '14px', fontWeight: '500' }}>
+                Modo Offline Activo
+              </span>
+            </>
           ) : (
             <>
               <AlertTriangle style={{ width: '16px', height: '16px', color: '#ef4444' }} />
@@ -276,6 +314,7 @@ const BackendConnectionStatus = ({
         {/* Reconnect button */}
         {!isConnected && (
           <button
+            className="interactive-button"
             onClick={onReconnect}
             disabled={isLoading}
             style={{
@@ -304,14 +343,19 @@ const BackendConnectionStatus = ({
       {/* Connection status text */}
       <div style={{ 
         fontSize: '12px', 
-        color: isConnected ? '#86efac' : '#fca5a5',
+        color: isConnected ? '#86efac' : offlineMode ? '#fbbf24' : '#fca5a5',
         marginLeft: '24px'
       }}>
-        {connectionStatus?.text || (isConnected ? 'API funcionando correctamente' : 'Revisa que el backend esté ejecutándose')}
+        {isConnected 
+          ? 'Funcionalidad completa disponible'
+          : offlineMode
+            ? 'Usando API directa - Configurar keys abajo'
+            : 'Conecta el backend para funcionalidad completa'
+        }
       </div>
 
       {/* Error message */}
-      {error && (
+      {error && !offlineMode && (
         <div style={{
           marginTop: '8px',
           padding: '8px',
@@ -328,7 +372,7 @@ const BackendConnectionStatus = ({
 );
 
 /**
- * Configuración del proyecto actual
+ * Configuración del proyecto actual (sin cambios)
  */
 const ProjectSettings = ({ currentProject, setCurrentProject }) => (
   <div style={{ marginBottom: '20px' }}>
@@ -343,6 +387,7 @@ const ProjectSettings = ({ currentProject, setCurrentProject }) => (
     </label>
     
     <input
+      className="animated-button"
       type="text"
       value={currentProject}
       onChange={(e) => setCurrentProject(e.target.value)}
@@ -355,7 +400,8 @@ const ProjectSettings = ({ currentProject, setCurrentProject }) => (
         borderRadius: '8px',
         color: 'white',
         fontSize: '14px',
-        outline: 'none'
+        outline: 'none',
+        transition: 'border-color 0.2s'
       }}
       onFocus={(e) => e.target.style.borderColor = '#2563eb'}
       onBlur={(e) => e.target.style.borderColor = '#4b5563'}
@@ -372,7 +418,7 @@ const ProjectSettings = ({ currentProject, setCurrentProject }) => (
 );
 
 /**
- * Selección de proveedor de IA
+ * ✅ Selección de proveedor - SIN RESTRICCIONES DE BACKEND
  */
 const ProviderSelection = ({ 
   availableProviders, 
@@ -380,7 +426,7 @@ const ProviderSelection = ({
   isMobile, 
   apiStatus,
   onProviderChange,
-  isBackendConnected 
+  canUseSystem // ✅ Ya no solo backend
 }) => (
   <div style={{ marginBottom: '20px' }}>
     <label style={{ 
@@ -394,17 +440,16 @@ const ProviderSelection = ({
       gap: '8px'
     }}>
       🤖 Proveedor de IA
-      {!isBackendConnected && (
-        <span style={{
-          fontSize: '11px',
-          color: '#ef4444',
-          backgroundColor: 'rgba(239, 68, 68, 0.2)',
-          padding: '2px 6px',
-          borderRadius: '10px'
-        }}>
-          Requiere Backend
-        </span>
-      )}
+      {/* ✅ Info mejorada - no restricción de backend */}
+      <span style={{
+        fontSize: '11px',
+        color: canUseSystem ? '#86efac' : '#fbbf24',
+        backgroundColor: canUseSystem ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+        padding: '2px 6px',
+        borderRadius: '10px'
+      }}>
+        {canUseSystem ? 'Disponible' : 'Config. API Key'}
+      </span>
     </label>
     
     <div style={{
@@ -413,25 +458,29 @@ const ProviderSelection = ({
       gap: '12px'
     }}>
       {Object.entries(availableProviders).map(([provider, info]) => {
-        const status = apiStatus[provider];
+        const status = apiStatus?.[provider];
         const isSelected = currentProvider === provider;
-        const isAvailable = (status?.available || false) && isBackendConnected;
+        const hasApiKey = !!localStorage.getItem(`api_key_${provider}`);
+        // ✅ Disponible si tiene API key O no la necesita
+        const isAvailable = hasApiKey || info.needsApiKey === false;
         
         return (
           <button
             key={provider}
-            onClick={() => isAvailable && onProviderChange(provider)}
-            disabled={!isAvailable}
+            className="animated-button interactive-button"
+            onClick={() => onProviderChange(provider)} // ✅ Sin restricciones
             style={{
               padding: '12px',
               borderRadius: '8px',
               border: `2px solid ${isSelected ? '#2563eb' : '#4b5563'}`,
               backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.2)' : 'rgba(55, 65, 81, 0.5)',
-              cursor: !isAvailable ? 'not-allowed' : 'pointer',
+              cursor: 'pointer', // ✅ Siempre clickeable
               transition: 'all 0.2s',
-              opacity: !isAvailable ? 0.6 : 1,
+              opacity: 1, // ✅ Sin opacidad reducida
               position: 'relative'
             }}
+            onMouseEnter={(e) => !isSelected && (e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.8)')}
+            onMouseLeave={(e) => !isSelected && (e.target.style.backgroundColor = 'rgba(55, 65, 81, 0.5)')}
           >
             <div style={{ textAlign: 'center' }}>
               <div style={{ 
@@ -443,7 +492,9 @@ const ProviderSelection = ({
                 gap: '4px'
               }}>
                 {info.icon}
-                {status?.available && isBackendConnected && <span style={{ fontSize: '12px' }}>✅</span>}
+                {/* ✅ Indicador de estado mejorado */}
+                {isAvailable && <span style={{ fontSize: '12px' }}>✅</span>}
+                {!isAvailable && info.needsApiKey && <span style={{ fontSize: '12px' }}>🔑</span>}
               </div>
               <div style={{ 
                 fontSize: isMobile ? '12px' : '14px', 
@@ -457,16 +508,15 @@ const ProviderSelection = ({
                 {info.freeLimit}
               </div>
               
-              {!isBackendConnected && (
-                <div style={{
-                  position: 'absolute',
-                  top: '4px',
-                  right: '4px',
-                  fontSize: '12px'
-                }}>
-                  🔌
-                </div>
-              )}
+              {/* ✅ Estado de configuración */}
+              <div style={{
+                marginTop: '4px',
+                fontSize: '10px',
+                color: isAvailable ? '#86efac' : '#fbbf24',
+                fontWeight: '500'
+              }}>
+                {isAvailable ? 'CONFIGURADO' : 'NECESITA KEY'}
+              </div>
             </div>
           </button>
         );
@@ -476,7 +526,7 @@ const ProviderSelection = ({
 );
 
 /**
- * Selección de modelo
+ * ✅ Selección de modelo - SIN RESTRICCIONES DE BACKEND
  */
 const ModelSelection = ({ 
   availableModels, 
@@ -484,7 +534,7 @@ const ModelSelection = ({
   currentProvider,
   isMobile, 
   onModelChange,
-  isBackendConnected 
+  canUseSystem
 }) => (
   <div style={{ marginBottom: '20px' }}>
     <label style={{ 
@@ -498,9 +548,9 @@ const ModelSelection = ({
     </label>
     
     <select
+      className="animated-button"
       value={currentModel}
       onChange={(e) => onModelChange(e.target.value)}
-      disabled={!isBackendConnected}
       style={{
         width: '100%',
         padding: '10px 12px',
@@ -510,10 +560,11 @@ const ModelSelection = ({
         color: 'white',
         fontSize: '14px',
         outline: 'none',
-        cursor: isBackendConnected ? 'pointer' : 'not-allowed',
-        opacity: isBackendConnected ? 1 : 0.6
+        cursor: 'pointer', // ✅ Siempre habilitado
+        opacity: 1, // ✅ Sin restricciones
+        transition: 'border-color 0.2s'
       }}
-      onFocus={(e) => isBackendConnected && (e.target.style.borderColor = '#2563eb')}
+      onFocus={(e) => e.target.style.borderColor = '#2563eb'}
       onBlur={(e) => e.target.style.borderColor = '#4b5563'}
     >
       {Object.entries(availableModels).map(([model, description]) => (
@@ -533,19 +584,16 @@ const ModelSelection = ({
       color: '#d1d5db'
     }}>
       📊 <strong>Modelo actual:</strong> {currentModel}
-      {!isBackendConnected && (
-        <span style={{ color: '#ef4444', marginLeft: '8px' }}>
-          (Backend requerido)
-        </span>
-      )}
+      <br />
+      💡 <strong>Estado:</strong> {canUseSystem ? 'Listo para usar' : 'Configurar API key'}
     </div>
   </div>
 );
 
 /**
- * Estado de la API Key
+ * Estado de la API Key - MEJORADO
  */
-const ApiKeyStatus = ({ provider, hasApiKey, apiStatus, isBackendConnected }) => {
+const ApiKeyStatus = ({ provider, hasApiKey, apiStatus, canUseSystem }) => {
   if (!API_LIMITS[provider]?.needsApiKey) {
     return (
       <div style={{
@@ -560,52 +608,45 @@ const ApiKeyStatus = ({ provider, hasApiKey, apiStatus, isBackendConnected }) =>
           <span style={{ color: '#86efac' }}>
             {provider.toUpperCase()} no requiere API Key
           </span>
-          {!isBackendConnected && (
-            <span style={{ color: '#ef4444', fontSize: '12px' }}>
-              (Backend OFF)
-            </span>
-          )}
         </div>
       </div>
     );
   }
 
-  const isFullyAvailable = hasApiKey && apiStatus?.available && isBackendConnected;
+  const isConfigured = hasApiKey || !!localStorage.getItem(`api_key_${provider}`);
 
   return (
     <div style={{ marginBottom: '20px' }}>
       <div style={{
         padding: '12px',
-        backgroundColor: isFullyAvailable ? 
+        backgroundColor: isConfigured ? 
           'rgba(16, 185, 129, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-        border: isFullyAvailable ? 
+        border: isConfigured ? 
           '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
         borderRadius: '8px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          {isFullyAvailable ? (
+          {isConfigured ? (
             <>
               <CheckCircle style={{ width: '16px', height: '16px', color: '#10b981' }} />
               <span style={{ color: '#86efac', fontSize: '14px', fontWeight: '500' }}>
-                API Key configurada y funcionando
+                API Key configurada para {provider.toUpperCase()}
               </span>
             </>
           ) : (
             <>
               <ExternalLink style={{ width: '16px', height: '16px', color: '#eab308' }} />
               <span style={{ color: '#fbbf24', fontSize: '14px', fontWeight: '500' }}>
-                {!hasApiKey ? 'API Key requerida' : 
-                 !apiStatus?.available ? 'API Key inválida' : 
-                 'Backend desconectado'}
+                API Key requerida para {provider.toUpperCase()}
               </span>
             </>
           )}
         </div>
         
-        {!isFullyAvailable && (
+        {!isConfigured && (
           <div>
             <p style={{ fontSize: '12px', color: '#d1d5db', margin: '0 0 8px 0' }}>
-              Configura tu API Key en el archivo .env:
+              Configura tu API Key gratuita:
             </p>
             <code style={{
               display: 'block',
@@ -622,6 +663,7 @@ const ApiKeyStatus = ({ provider, hasApiKey, apiStatus, isBackendConnected }) =>
               href={API_LIMITS[provider].setup}
               target="_blank"
               rel="noopener noreferrer"
+              className="animated-button"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -649,11 +691,11 @@ const ApiKeyStatus = ({ provider, hasApiKey, apiStatus, isBackendConnected }) =>
 };
 
 /**
- * Información del dispositivo
+ * Información del dispositivo (sin cambios)
  */
 const DeviceInfo = ({ isMobile }) => (
   <div style={{ marginBottom: '20px' }}>
-    <div style={{
+    <div className="animated-card" style={{
       padding: '12px',
       backgroundColor: 'rgba(55, 65, 81, 0.3)',
       borderRadius: '8px'
@@ -679,11 +721,11 @@ const DeviceInfo = ({ isMobile }) => (
 );
 
 /**
- * Información del Live Preview
+ * Información del Live Preview (sin cambios)
  */
 const LivePreviewInfo = ({ liveCodeBlocks }) => (
   <div style={{ marginBottom: '20px' }}>
-    <div style={{
+    <div className="animated-card" style={{
       padding: '12px',
       backgroundColor: 'rgba(37, 99, 235, 0.2)',
       border: '1px solid rgba(37, 99, 235, 0.3)',
@@ -703,11 +745,11 @@ const LivePreviewInfo = ({ liveCodeBlocks }) => (
 );
 
 /**
- * Tips rápidos
+ * ✅ Tips rápidos - ACTUALIZADOS con info de modo offline
  */
-const QuickTips = ({ currentProvider, isMobile, isBackendConnected }) => (
+const QuickTips = ({ currentProvider, isMobile, isBackendConnected, offlineMode, canUseSystem }) => (
   <div style={{ marginBottom: '8px' }}>
-    <div style={{
+    <div className="animated-card shimmer-effect" style={{
       padding: '12px',
       backgroundColor: 'rgba(124, 58, 237, 0.1)',
       border: '1px solid rgba(124, 58, 237, 0.2)',
@@ -727,7 +769,7 @@ const QuickTips = ({ currentProvider, isMobile, isBackendConnected }) => (
         paddingLeft: '16px',
         lineHeight: '1.4'
       }}>
-        {getTipsForProvider(currentProvider, isBackendConnected).map((tip, index) => (
+        {getTipsForProvider(currentProvider, isBackendConnected, offlineMode, canUseSystem).map((tip, index) => (
           <li key={index} style={{ marginBottom: '4px' }}>
             {tip}
           </li>
@@ -738,9 +780,9 @@ const QuickTips = ({ currentProvider, isMobile, isBackendConnected }) => (
 );
 
 /**
- * Obtener tips específicos por proveedor
+ * ✅ Obtener tips específicos por proveedor - ACTUALIZADOS
  */
-const getTipsForProvider = (provider, isBackendConnected) => {
+const getTipsForProvider = (provider, isBackendConnected, offlineMode, canUseSystem) => {
   const baseTips = {
     gemini: [
       'Mejor para análisis de código y explicaciones detalladas',
@@ -766,10 +808,26 @@ const getTipsForProvider = (provider, isBackendConnected) => {
 
   const tips = baseTips[provider] || ['Configura tu API key para comenzar'];
   
-  if (!isBackendConnected) {
+  // ✅ Tips según el estado del sistema
+  if (!canUseSystem) {
     return [
-      '⚠️ Backend desconectado - inicia el servidor',
-      'npm run server (o tu comando de backend)',
+      '⚠️ Sistema no configurado',
+      'Configura al menos una API key para comenzar',
+      ...tips
+    ];
+  }
+  
+  if (offlineMode && !isBackendConnected) {
+    return [
+      '🟡 Modo offline activo - usando API directa',
+      'Funcionalidad básica disponible',
+      ...tips
+    ];
+  }
+
+  if (isBackendConnected) {
+    return [
+      '🟢 Backend conectado - funcionalidad completa',
       ...tips
     ];
   }

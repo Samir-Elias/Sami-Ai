@@ -1,5 +1,5 @@
 // ============================================
-// 🎉 WELCOME SCREEN COMPONENT - CON API CONTEXT Y ZOOM PARA PC
+// 🎉 WELCOME SCREEN COMPONENT - SIN RESTRICCIONES Y CON ANIMACIONES
 // ============================================
 
 import React from 'react';
@@ -16,12 +16,14 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle,
-  Database
+  Database,
+  MessageSquare,
+  Play
 } from 'lucide-react';
 import { useApp, useBackendStatus, useAPI } from '../../context/AppContext';
 
 /**
- * Pantalla de bienvenida con API Context integrado
+ * ✅ Pantalla de bienvenida SIN RESTRICCIONES - permite chat directo
  * @param {Object} props - Props del componente
  */
 const WelcomeScreen = ({
@@ -31,55 +33,65 @@ const WelcomeScreen = ({
   hasApiKey,
   currentProvider
 }) => {
-  // Context integration
+  // ✅ Context integration con modo offline
   const { 
     isBackendConnected, 
     connectionStatus, 
-    currentProject 
+    currentProject,
+    offlineMode
   } = useApp();
   
   const { isConnected, reconnect } = useBackendStatus();
   const { api, isLoading, error } = useAPI();
 
+  // ✅ Determinar si podemos usar el chat
+  const canUseChat = hasApiKey || (offlineMode && hasApiKey) || isBackendConnected;
+  const needsConfiguration = !hasApiKey && !isBackendConnected;
+
   // Determinar el zoom base para PC (más grande)
-  const baseScale = isMobile ? 1 : 1.15; // 15% más grande en PC
+  const baseScale = isMobile ? 1 : 1.15;
   
   return (
-    <div style={{ 
-      textAlign: 'center', 
-      padding: isMobile ? '32px 16px' : '56px 40px', // Más padding en PC
-      maxWidth: isMobile ? '100%' : '900px', // Más ancho en PC
-      margin: '0 auto',
-      transform: `scale(${baseScale})`,
-      transformOrigin: 'center top'
-    }}>
-      {/* Backend Connection Status */}
-      <BackendConnectionBanner 
+    <div 
+      className="fade-in-up"
+      style={{ 
+        textAlign: 'center', 
+        padding: isMobile ? '32px 16px' : '56px 40px',
+        maxWidth: isMobile ? '100%' : '900px',
+        margin: '0 auto',
+        transform: `scale(${baseScale})`,
+        transformOrigin: 'center top'
+      }}
+    >
+      {/* ✅ Connection Status Banner - NO BLOQUEA EL USO */}
+      <ConnectionStatusBanner 
         isConnected={isBackendConnected}
         connectionStatus={connectionStatus}
         isLoading={isLoading}
         error={error}
         onReconnect={reconnect}
         isMobile={isMobile}
+        offlineMode={offlineMode}
+        showWarning={!isBackendConnected && !offlineMode}
       />
 
-      {/* Logo y título principal */}
-      <div style={{
-        width: isMobile ? '64px' : '96px', // Más grande en PC
-        height: isMobile ? '64px' : '96px',
-        background: isBackendConnected ? 
-          'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)' :
-          'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-        borderRadius: '18px', // Más redondeado
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        margin: '0 auto 24px',
-        boxShadow: isBackendConnected ? 
-          '0 12px 40px rgba(59, 130, 246, 0.4)' :
-          '0 8px 32px rgba(107, 114, 128, 0.3)',
-        position: 'relative'
-      }}>
+      {/* ✅ Logo y título principal CON ANIMACIONES */}
+      <div 
+        className="animated-logo main-logo"
+        style={{
+          width: isMobile ? '64px' : '96px',
+          height: isMobile ? '64px' : '96px',
+          background: canUseChat ? 
+            'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)' :
+            'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
+          borderRadius: '18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 24px',
+          position: 'relative'
+        }}
+      >
         <Sparkles style={{ 
           width: isMobile ? '32px' : '48px', 
           height: isMobile ? '32px' : '48px'
@@ -93,56 +105,77 @@ const WelcomeScreen = ({
           width: '16px',
           height: '16px',
           borderRadius: '50%',
-          backgroundColor: isBackendConnected ? '#10b981' : '#ef4444',
+          backgroundColor: isBackendConnected ? '#10b981' : offlineMode ? '#f59e0b' : '#ef4444',
           border: '2px solid white',
           boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }} />
       </div>
 
-      <h1 style={{ 
-        fontSize: isMobile ? '24px' : '40px', // Más grande en PC
-        fontWeight: 'bold', 
-        marginBottom: '12px',
-        background: isBackendConnected ?
-          'linear-gradient(135deg, #60a5fa, #a855f7)' :
-          'linear-gradient(135deg, #9ca3af, #6b7280)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text'
-      }}>
+      <h1 
+        className="gentle-float"
+        style={{ 
+          fontSize: isMobile ? '24px' : '40px',
+          fontWeight: 'bold', 
+          marginBottom: '12px',
+          background: canUseChat ?
+            'linear-gradient(135deg, #60a5fa, #a855f7)' :
+            'linear-gradient(135deg, #9ca3af, #6b7280)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text'
+        }}
+      >
         ¡Bienvenido a DevAI Agent!
       </h1>
 
-      <p style={{ 
-        fontSize: isMobile ? '16px' : '24px', // Más grande en PC
-        color: isBackendConnected ? '#d1d5db' : '#9ca3af', 
-        marginBottom: '40px',
-        lineHeight: '1.5'
-      }}>
+      <p 
+        className="shimmer-effect"
+        style={{ 
+          fontSize: isMobile ? '16px' : '24px',
+          color: canUseChat ? '#d1d5db' : '#9ca3af', 
+          marginBottom: '40px',
+          lineHeight: '1.5'
+        }}
+      >
         Tu asistente de desarrollo con IA y Live Preview en tiempo real
       </p>
 
       {/* Project Info */}
       <ProjectInfo 
         currentProject={currentProject}
-        isBackendConnected={isBackendConnected}
+        canUseChat={canUseChat}
         isMobile={isMobile}
       />
 
-      {/* Features cards - solo en desktop */}
+      {/* ✅ Feature cards - SIEMPRE VISIBLES en desktop */}
       {!isMobile && (
-        <FeatureCards isBackendConnected={isBackendConnected} />
+        <FeatureCards 
+          canUseChat={canUseChat} 
+          isBackendConnected={isBackendConnected}
+          offlineMode={offlineMode}
+        />
       )}
 
-      {/* Action buttons */}
+      {/* ✅ Action buttons - SIN RESTRICCIONES */}
       <ActionButtons
         isMobile={isMobile}
         hasApiKey={hasApiKey}
-        isBackendConnected={isBackendConnected}
+        canUseChat={canUseChat}
+        needsConfiguration={needsConfiguration}
         onFileUpload={onFileUpload}
         onSettingsOpen={onSettingsOpen}
         onReconnect={reconnect}
         isLoading={isLoading}
+        onStartChat={() => {
+          // ✅ Focus en el input para empezar a escribir
+          setTimeout(() => {
+            const inputElement = document.querySelector('textarea');
+            if (inputElement) {
+              inputElement.focus();
+              inputElement.placeholder = 'Escribe tu pregunta aquí...';
+            }
+          }, 100);
+        }}
       />
 
       {/* Status info */}
@@ -152,18 +185,26 @@ const WelcomeScreen = ({
         currentProvider={currentProvider}
         isBackendConnected={isBackendConnected}
         connectionStatus={connectionStatus}
+        offlineMode={offlineMode}
+        canUseChat={canUseChat}
       />
 
       {/* Quick tips for mobile */}
       {isMobile && (
-        <MobileQuickTips isBackendConnected={isBackendConnected} />
+        <MobileQuickTips 
+          canUseChat={canUseChat}
+          isBackendConnected={isBackendConnected}
+          offlineMode={offlineMode}
+        />
       )}
 
       {/* Desktop tips */}
       {!isMobile && (
         <DesktopQuickTips 
-          isBackendConnected={isBackendConnected}
+          canUseChat={canUseChat}
           hasApiKey={hasApiKey}
+          isBackendConnected={isBackendConnected}
+          offlineMode={offlineMode}
         />
       )}
     </div>
@@ -171,54 +212,61 @@ const WelcomeScreen = ({
 };
 
 /**
- * Banner de estado de conexión del backend
+ * ✅ Banner de estado de conexión - NO BLOQUEA
  */
-const BackendConnectionBanner = ({ 
+const ConnectionStatusBanner = ({ 
   isConnected, 
   connectionStatus, 
   isLoading, 
   error, 
   onReconnect,
-  isMobile 
+  isMobile,
+  offlineMode,
+  showWarning
 }) => {
-  if (isConnected) return null; // Solo mostrar si hay problemas
+  // Solo mostrar si hay problemas graves
+  if (isConnected || offlineMode) return null;
 
   return (
-    <div style={{
-      marginBottom: '24px',
-      padding: '16px',
-      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-      border: '2px solid rgba(239, 68, 68, 0.3)',
-      borderRadius: '12px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      flexDirection: isMobile ? 'column' : 'row',
-      gap: '12px'
-    }}>
+    <div 
+      className="animated-card"
+      style={{
+        marginBottom: '24px',
+        padding: '16px',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)', // Cambiado a warning en vez de error
+        border: '2px solid rgba(245, 158, 11, 0.3)',
+        borderRadius: '12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: '12px'
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <WifiOff style={{ width: '24px', height: '24px', color: '#ef4444' }} />
+        <WifiOff style={{ width: '24px', height: '24px', color: '#f59e0b' }} />
         <div style={{ textAlign: isMobile ? 'center' : 'left' }}>
           <div style={{ 
             fontSize: '16px', 
             fontWeight: '600', 
-            color: '#fca5a5',
+            color: '#fbbf24',
             marginBottom: '4px'
           }}>
-            Backend Desconectado
+            Backend Offline - Modo Directo Disponible
           </div>
-          <div style={{ fontSize: '14px', color: '#9ca3af' }}>
-            {error || 'El servidor de backend no está disponible'}
+          <div style={{ fontSize: '14px', color: '#d1d5db' }}>
+            Puedes usar las APIs directamente configurando las keys
           </div>
         </div>
       </div>
 
       <button
+        className="interactive-button animated-button"
         onClick={onReconnect}
         disabled={isLoading}
         style={{
           padding: '12px 20px',
-          backgroundColor: '#ef4444',
+          backgroundColor: '#f59e0b',
           border: 'none',
           borderRadius: '8px',
           color: 'white',
@@ -233,15 +281,15 @@ const BackendConnectionBanner = ({
           minWidth: '140px',
           justifyContent: 'center'
         }}
-        onMouseEnter={(e) => !isLoading && (e.target.style.backgroundColor = '#dc2626')}
-        onMouseLeave={(e) => !isLoading && (e.target.style.backgroundColor = '#ef4444')}
+        onMouseEnter={(e) => !isLoading && (e.target.style.backgroundColor = '#d97706')}
+        onMouseLeave={(e) => !isLoading && (e.target.style.backgroundColor = '#f59e0b')}
       >
         <RefreshCw style={{ 
           width: '16px', 
           height: '16px',
           animation: isLoading ? 'spin 1s linear infinite' : 'none'
         }} />
-        {isLoading ? 'Conectando...' : 'Reconectar'}
+        {isLoading ? 'Conectando...' : 'Reconectar Backend'}
       </button>
     </div>
   );
@@ -250,14 +298,17 @@ const BackendConnectionBanner = ({
 /**
  * Información del proyecto actual
  */
-const ProjectInfo = ({ currentProject, isBackendConnected, isMobile }) => (
-  <div style={{
-    marginBottom: '32px',
-    padding: '16px',
-    backgroundColor: 'rgba(31, 41, 55, 0.5)',
-    borderRadius: '12px',
-    border: '1px solid rgba(55, 65, 81, 0.5)'
-  }}>
+const ProjectInfo = ({ currentProject, canUseChat, isMobile }) => (
+  <div 
+    className="animated-card"
+    style={{
+      marginBottom: '32px',
+      padding: '16px',
+      backgroundColor: 'rgba(31, 41, 55, 0.5)',
+      borderRadius: '12px',
+      border: '1px solid rgba(55, 65, 81, 0.5)'
+    }}
+  >
     <div style={{
       display: 'flex',
       alignItems: 'center',
@@ -268,12 +319,12 @@ const ProjectInfo = ({ currentProject, isBackendConnected, isMobile }) => (
       <Database style={{ 
         width: '20px', 
         height: '20px', 
-        color: isBackendConnected ? '#60a5fa' : '#6b7280'
+        color: canUseChat ? '#60a5fa' : '#6b7280'
       }} />
       <span style={{ 
         fontSize: isMobile ? '16px' : '18px',
         fontWeight: '600',
-        color: isBackendConnected ? '#f3f4f6' : '#9ca3af'
+        color: canUseChat ? '#f3f4f6' : '#9ca3af'
       }}>
         Proyecto Actual
       </span>
@@ -282,7 +333,7 @@ const ProjectInfo = ({ currentProject, isBackendConnected, isMobile }) => (
     <div style={{
       fontSize: isMobile ? '18px' : '22px',
       fontWeight: '700',
-      color: isBackendConnected ? '#60a5fa' : '#6b7280'
+      color: canUseChat ? '#60a5fa' : '#6b7280'
     }}>
       {currentProject}
     </div>
@@ -298,64 +349,60 @@ const ProjectInfo = ({ currentProject, isBackendConnected, isMobile }) => (
 );
 
 /**
- * Cards de características principales (más grandes en PC)
+ * ✅ Cards de características principales - SIEMPRE ACTIVAS
  */
-const FeatureCards = ({ isBackendConnected }) => (
-  <div style={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '24px', // Más espacio
-    marginBottom: '40px',
-    maxWidth: '720px', // Más ancho
-    margin: '0 auto 40px'
-  }}>
+const FeatureCards = ({ canUseChat, isBackendConnected, offlineMode }) => (
+  <div 
+    className="fade-in-up delay-1"
+    style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '24px',
+      marginBottom: '40px',
+      maxWidth: '720px',
+      margin: '0 auto 40px'
+    }}
+  >
     <FeatureCard
-      icon="🏆"
-      title="APIs Gratuitas"
-      description="Gemini, Groq, HuggingFace y Ollama"
-      isActive={isBackendConnected}
+      icon="🤖"
+      title="Chat con IA"
+      description={canUseChat ? "Gemini, Groq, HuggingFace y más" : "Configura API keys"}
+      isActive={canUseChat}
     />
     <FeatureCard
       icon="👁️"
       title="Live Preview"
       description="HTML, CSS, JS y React en tiempo real"
-      isActive={isBackendConnected}
+      isActive={canUseChat}
     />
     <FeatureCard
       icon="📱"
-      title="Responsive"
-      description="Optimizado para móvil y desktop"
-      isActive={isBackendConnected}
+      title="Modo Flexible"
+      description={isBackendConnected ? "Backend completo" : offlineMode ? "API directa" : "Configuración"}
+      isActive={true} // Siempre disponible
     />
   </div>
 );
 
 /**
- * Card individual de característica (más grande)
+ * Card individual de característica
  */
 const FeatureCard = ({ icon, title, description, isActive }) => (
-  <div style={{
-    backgroundColor: 'rgba(31, 41, 55, 0.5)',
-    borderRadius: '16px', // Más redondeado
-    padding: '28px', // Más padding
-    border: `2px solid ${isActive ? 'rgba(59, 130, 246, 0.3)' : 'rgba(55, 65, 81, 0.5)'}`,
-    transition: 'all 0.3s ease',
-    cursor: 'default',
-    opacity: isActive ? 1 : 0.7
-  }}
-  onMouseEnter={(e) => {
-    e.currentTarget.style.transform = 'translateY(-4px)';
-    e.currentTarget.style.boxShadow = isActive ? 
-      '0 12px 32px rgba(59, 130, 246, 0.2)' : 
-      '0 8px 25px rgba(0,0,0,0.2)';
-  }}
-  onMouseLeave={(e) => {
-    e.currentTarget.style.transform = 'translateY(0)';
-    e.currentTarget.style.boxShadow = 'none';
-  }}>
+  <div 
+    className="animated-card hover-lift"
+    style={{
+      backgroundColor: 'rgba(31, 41, 55, 0.5)',
+      borderRadius: '16px',
+      padding: '28px',
+      border: `2px solid ${isActive ? 'rgba(59, 130, 246, 0.3)' : 'rgba(55, 65, 81, 0.5)'}`,
+      transition: 'all 0.3s ease',
+      cursor: 'default',
+      opacity: isActive ? 1 : 0.7
+    }}
+  >
     <div style={{ fontSize: '40px', marginBottom: '16px' }}>{icon}</div>
     <h3 style={{ 
-      fontSize: '18px', // Más grande
+      fontSize: '18px',
       fontWeight: '600', 
       margin: '0 0 12px 0',
       color: isActive ? '#f3f4f6' : '#9ca3af'
@@ -363,7 +410,7 @@ const FeatureCard = ({ icon, title, description, isActive }) => (
       {title}
     </h3>
     <p style={{ 
-      fontSize: '16px', // Más grande
+      fontSize: '16px',
       color: isActive ? '#9ca3af' : '#6b7280', 
       margin: 0,
       lineHeight: '1.5'
@@ -374,67 +421,62 @@ const FeatureCard = ({ icon, title, description, isActive }) => (
 );
 
 /**
- * Botones de acción principales (más grandes)
+ * ✅ Botones de acción principales - SIN RESTRICCIONES
  */
 const ActionButtons = ({ 
   isMobile, 
-  hasApiKey, 
-  isBackendConnected, 
+  hasApiKey,
+  canUseChat,
+  needsConfiguration,
   onFileUpload, 
   onSettingsOpen,
   onReconnect,
-  isLoading
+  isLoading,
+  onStartChat
 }) => (
   <div style={{
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
-    gap: '20px', // Más espacio
+    gap: '20px',
     justifyContent: 'center',
     marginBottom: '40px'
   }}>
-    {/* Reconectar backend (si está desconectado) */}
-    {!isBackendConnected && (
-      <ActionButton
-        icon={<RefreshCw style={{ 
-          width: '24px', 
-          height: '24px',
-          animation: isLoading ? 'spin 1s linear infinite' : 'none'
-        }} />}
-        text={isLoading ? "Conectando..." : "Conectar Backend"}
-        variant="warning"
-        onClick={onReconnect}
-        fullWidth={isMobile}
-        disabled={isLoading}
-        size="large"
-      />
-    )}
+    {/* ✅ CHAT DIRECTO - Siempre primera opción */}
+    <ActionButton
+      icon={<MessageSquare style={{ width: '24px', height: '24px' }} />}
+      text={canUseChat ? "Comenzar Chat" : "Configurar Chat"}
+      variant={canUseChat ? "primary" : "warning"}
+      onClick={canUseChat ? onStartChat : onSettingsOpen}
+      fullWidth={isMobile}
+      size="large"
+      priority={1}
+    />
 
     {/* Subir proyecto */}
     <ActionButton
       icon={<Upload style={{ width: '24px', height: '24px' }} />}
       text="Subir Proyecto"
-      variant="primary"
+      variant="secondary"
       onClick={onFileUpload}
       fullWidth={isMobile}
-      disabled={!isBackendConnected}
       size="large"
     />
     
     {/* Configuración */}
     <ActionButton
       icon={<Settings style={{ width: '24px', height: '24px' }} />}
-      text={hasApiKey ? "Configuración" : "Configurar API"}
-      variant={hasApiKey ? "secondary" : "warning"}
+      text="Configuración"
+      variant="secondary"
       onClick={onSettingsOpen}
       fullWidth={isMobile}
-      badge={!hasApiKey}
+      badge={needsConfiguration}
       size="large"
     />
   </div>
 );
 
 /**
- * Botón de acción reutilizable (más grande)
+ * Botón de acción reutilizable
  */
 const ActionButton = ({ 
   icon, 
@@ -444,7 +486,8 @@ const ActionButton = ({
   fullWidth = false,
   badge = false,
   disabled = false,
-  size = 'normal'
+  size = 'normal',
+  priority = 0
 }) => {
   const variants = {
     primary: {
@@ -467,7 +510,7 @@ const ActionButton = ({
 
   const sizes = {
     normal: { padding: '14px 24px', fontSize: '16px' },
-    large: { padding: '18px 32px', fontSize: '18px' } // Más grande
+    large: { padding: '18px 32px', fontSize: '18px' }
   };
 
   const style = variants[variant];
@@ -475,20 +518,20 @@ const ActionButton = ({
 
   return (
     <button
+      className={`animated-button interactive-button ${priority === 1 ? 'subtle-pulse' : ''}`}
       onClick={onClick}
       disabled={disabled}
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '16px', // Más espacio
+        gap: '16px',
         padding: sizeStyle.padding,
         background: style.background,
         border: 'none',
-        borderRadius: '14px', // Más redondeado
+        borderRadius: '14px',
         color: disabled ? '#6b7280' : 'white',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        transition: 'all 0.3s ease',
         fontSize: sizeStyle.fontSize,
         fontWeight: '600',
         width: fullWidth ? '100%' : 'auto',
@@ -496,7 +539,8 @@ const ActionButton = ({
         boxShadow: disabled ? 
           'none' : 
           '0 6px 16px rgba(0,0,0,0.15)',
-        opacity: disabled ? 0.6 : 1
+        opacity: disabled ? 0.6 : 1,
+        order: priority === 1 ? -1 : 0
       }}
       onMouseEnter={(e) => {
         if (!disabled) {
@@ -528,48 +572,44 @@ const ActionButton = ({
           boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }}></span>
       )}
-      
-      {disabled && (
-        <AlertCircle style={{ 
-          width: '20px', 
-          height: '20px', 
-          marginLeft: 'auto',
-          color: '#6b7280'
-        }} />
-      )}
     </button>
   );
 };
 
 /**
- * Información de estado (más grande)
+ * ✅ Información de estado - MEJORADA
  */
 const StatusInfo = ({ 
   isMobile, 
   hasApiKey, 
   currentProvider, 
   isBackendConnected, 
-  connectionStatus 
+  connectionStatus,
+  offlineMode,
+  canUseChat
 }) => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px', // Más espacio
-    marginBottom: '32px',
-    flexWrap: 'wrap'
-  }}>
+  <div 
+    className="animated-card delay-2"
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '20px',
+      marginBottom: '32px',
+      flexWrap: 'wrap'
+    }}
+  >
     <StatusBadge
-      icon={isBackendConnected ? <Wifi style={{ width: '16px', height: '16px' }} /> : <WifiOff style={{ width: '16px', height: '16px' }} />}
-      text={isBackendConnected ? 'Backend OK' : 'Backend OFF'}
-      color={isBackendConnected ? '#10b981' : '#ef4444'}
+      icon={isBackendConnected ? <Wifi style={{ width: '16px', height: '16px' }} /> : offlineMode ? <Zap style={{ width: '16px', height: '16px' }} /> : <WifiOff style={{ width: '16px', height: '16px' }} />}
+      text={isBackendConnected ? 'Backend OK' : offlineMode ? 'Modo Directo' : 'Offline'}
+      color={isBackendConnected ? '#10b981' : offlineMode ? '#f59e0b' : '#ef4444'}
       size="large"
     />
     
     <StatusBadge
-      icon={hasApiKey ? <CheckCircle style={{ width: '16px', height: '16px' }} /> : <AlertCircle style={{ width: '16px', height: '16px' }} />}
-      text={hasApiKey ? 'API Configurada' : 'API Pendiente'}
-      color={hasApiKey ? '#10b981' : '#eab308'}
+      icon={canUseChat ? <CheckCircle style={{ width: '16px', height: '16px' }} /> : <AlertCircle style={{ width: '16px', height: '16px' }} />}
+      text={canUseChat ? 'Chat Listo' : 'Config. Needed'}
+      color={canUseChat ? '#10b981' : '#eab308'}
       size="large"
     />
     
@@ -590,29 +630,32 @@ const StatusInfo = ({
 );
 
 /**
- * Badge de estado (más grande)
+ * Badge de estado
  */
 const StatusBadge = ({ icon, text, color, size = 'normal' }) => {
   const sizes = {
     normal: { padding: '6px 12px', fontSize: '14px' },
-    large: { padding: '10px 16px', fontSize: '16px' } // Más grande
+    large: { padding: '10px 16px', fontSize: '16px' }
   };
 
   const sizeStyle = sizes[size];
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      padding: sizeStyle.padding,
-      backgroundColor: 'rgba(31, 41, 55, 0.6)',
-      border: `2px solid ${color}40`,
-      borderRadius: '24px',
-      fontSize: sizeStyle.fontSize,
-      color: color,
-      fontWeight: '500'
-    }}>
+    <div 
+      className="subtle-pulse"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: sizeStyle.padding,
+        backgroundColor: 'rgba(31, 41, 55, 0.6)',
+        border: `2px solid ${color}40`,
+        borderRadius: '24px',
+        fontSize: sizeStyle.fontSize,
+        color: color,
+        fontWeight: '500'
+      }}
+    >
       {typeof icon === 'string' ? <span>{icon}</span> : icon}
       <span>{text}</span>
     </div>
@@ -620,17 +663,20 @@ const StatusBadge = ({ icon, text, color, size = 'normal' }) => {
 };
 
 /**
- * Tips rápidos para móvil
+ * ✅ Tips rápidos para móvil - ACTUALIZADOS
  */
-const MobileQuickTips = ({ isBackendConnected }) => (
-  <div style={{
-    backgroundColor: 'rgba(124, 58, 237, 0.1)',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
-    borderRadius: '12px',
-    padding: '20px',
-    marginTop: '24px',
-    textAlign: 'left'
-  }}>
+const MobileQuickTips = ({ canUseChat, isBackendConnected, offlineMode }) => (
+  <div 
+    className="animated-card"
+    style={{
+      backgroundColor: 'rgba(124, 58, 237, 0.1)',
+      border: '1px solid rgba(124, 58, 237, 0.2)',
+      borderRadius: '12px',
+      padding: '20px',
+      marginTop: '24px',
+      textAlign: 'left'
+    }}
+  >
     <div style={{
       display: 'flex',
       alignItems: 'center',
@@ -650,41 +696,60 @@ const MobileQuickTips = ({ isBackendConnected }) => (
       paddingLeft: '16px',
       lineHeight: '1.5'
     }}>
-      {!isBackendConnected && (
-        <li style={{ marginBottom: '8px', color: '#fca5a5' }}>
-          ⚠️ Conecta el backend primero
-        </li>
+      {!canUseChat ? (
+        <>
+          <li style={{ marginBottom: '8px', color: '#fbbf24' }}>
+            ⚙️ Configura una API key en Settings primero
+          </li>
+          <li style={{ marginBottom: '8px' }}>
+            🆓 Todas las APIs tienen planes gratuitos
+          </li>
+        </>
+      ) : (
+        <>
+          <li style={{ marginBottom: '8px', color: '#86efac' }}>
+            ✅ Ya puedes comenzar a chatear
+          </li>
+          <li style={{ marginBottom: '8px' }}>
+            Usa Gemini o Groq para mejor rendimiento en móvil
+          </li>
+          <li style={{ marginBottom: '8px' }}>
+            Enter para enviar, Shift+Enter para nueva línea
+          </li>
+        </>
       )}
       <li style={{ marginBottom: '8px' }}>
-        Usa Gemini o Groq para mejor rendimiento
-      </li>
-      <li style={{ marginBottom: '8px' }}>
-        El Live Preview no está disponible en móvil
-      </li>
-      <li style={{ marginBottom: '8px' }}>
-        Presiona Enter para enviar, Shift+Enter para nueva línea
+        Las conversaciones se guardan automáticamente
       </li>
       <li>
-        Las conversaciones se guardan automáticamente
+        El Live Preview no está disponible en móvil
       </li>
     </ul>
   </div>
 );
 
 /**
- * Tips rápidos para desktop (más grandes)
+ * ✅ Tips rápidos para desktop - ACTUALIZADOS
  */
-const DesktopQuickTips = ({ isBackendConnected, hasApiKey }) => (
-  <div style={{
-    backgroundColor: 'rgba(124, 58, 237, 0.1)',
-    border: '2px solid rgba(124, 58, 237, 0.2)',
-    borderRadius: '16px',
-    padding: '28px',
-    marginTop: '32px',
-    textAlign: 'left',
-    maxWidth: '600px',
-    margin: '32px auto 0'
-  }}>
+const DesktopQuickTips = ({ 
+  canUseChat, 
+  hasApiKey, 
+  isBackendConnected, 
+  offlineMode 
+}) => (
+  <div 
+    className="animated-card delay-3"
+    style={{
+      backgroundColor: 'rgba(124, 58, 237, 0.1)',
+      border: '2px solid rgba(124, 58, 237, 0.2)',
+      borderRadius: '16px',
+      padding: '28px',
+      marginTop: '32px',
+      textAlign: 'left',
+      maxWidth: '600px',
+      margin: '32px auto 0'
+    }}
+  >
     <div style={{
       display: 'flex',
       alignItems: 'center',
@@ -705,7 +770,7 @@ const DesktopQuickTips = ({ isBackendConnected, hasApiKey }) => (
           margin: '0 0 8px 0',
           fontWeight: '600'
         }}>
-          🚀 Para comenzar:
+          🚀 Estado actual:
         </h4>
         <ul style={{
           fontSize: '14px',
@@ -714,31 +779,35 @@ const DesktopQuickTips = ({ isBackendConnected, hasApiKey }) => (
           paddingLeft: '16px',
           lineHeight: '1.6'
         }}>
-          {!isBackendConnected ? (
-            <li style={{ color: '#fca5a5', marginBottom: '6px' }}>
-              1. ⚠️ Inicia el servidor backend
+          {canUseChat ? (
+            <li style={{ color: '#86efac', marginBottom: '6px' }}>
+              ✅ Chat listo para usar
             </li>
           ) : (
-            <li style={{ color: '#86efac', marginBottom: '6px' }}>
-              1. ✅ Backend conectado
+            <li style={{ color: '#fbbf24', marginBottom: '6px' }}>
+              ⚙️ Configura API keys en Settings
             </li>
           )}
           
-          {!hasApiKey ? (
+          {isBackendConnected ? (
+            <li style={{ color: '#86efac', marginBottom: '6px' }}>
+              ✅ Backend conectado (completo)
+            </li>
+          ) : offlineMode ? (
             <li style={{ color: '#fbbf24', marginBottom: '6px' }}>
-              2. 🔑 Configura al menos una API key
+              🟡 Modo offline (API directa)
             </li>
           ) : (
-            <li style={{ color: '#86efac', marginBottom: '6px' }}>
-              2. ✅ API configurada
+            <li style={{ color: '#9ca3af', marginBottom: '6px' }}>
+              ⚪ Backend offline (opcional)
             </li>
           )}
           
           <li style={{ marginBottom: '6px' }}>
-            3. 📁 Sube un proyecto o haz una pregunta
+            3. 📁 Sube proyectos (opcional)
           </li>
           <li>
-            4. 👁️ Disfruta del Live Preview automático
+            4. 👁️ Disfruta del Live Preview
           </li>
         </ul>
       </div>
@@ -750,7 +819,7 @@ const DesktopQuickTips = ({ isBackendConnected, hasApiKey }) => (
           margin: '0 0 8px 0',
           fontWeight: '600'
         }}>
-          💡 Características destacadas:
+          💡 Características:
         </h4>
         <ul style={{
           fontSize: '14px',
@@ -763,317 +832,18 @@ const DesktopQuickTips = ({ isBackendConnected, hasApiKey }) => (
             🆓 4 APIs gratuitas disponibles
           </li>
           <li style={{ marginBottom: '6px' }}>
-            ⚡ Respuestas en tiempo real
+            ⚡ Funciona con/sin backend
           </li>
           <li style={{ marginBottom: '6px' }}>
             🔄 Conversaciones persistentes
           </li>
           <li>
-            🎨 Visualización de código en vivo
+            🎨 Live Preview automático
           </li>
         </ul>
       </div>
     </div>
   </div>
 );
-
-/**
- * Variante compacta para cuando hay poco espacio (más grande en PC)
- */
-export const CompactWelcomeScreen = ({ 
-  isMobile, 
-  onFileUpload, 
-  onSettingsOpen, 
-  hasApiKey 
-}) => {
-  const { isBackendConnected } = useApp();
-  const baseScale = isMobile ? 1 : 1.1;
-
-  return (
-    <div style={{
-      textAlign: 'center',
-      padding: isMobile ? '20px 16px' : '40px',
-      maxWidth: '600px',
-      margin: '0 auto',
-      transform: `scale(${baseScale})`,
-      transformOrigin: 'center top'
-    }}>
-      <div style={{
-        width: isMobile ? '48px' : '64px',
-        height: isMobile ? '48px' : '64px',
-        background: isBackendConnected ? 
-          'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)' :
-          'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-        borderRadius: '14px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        margin: '0 auto 20px',
-        boxShadow: isBackendConnected ? 
-          '0 6px 20px rgba(59, 130, 246, 0.4)' :
-          '0 4px 16px rgba(107, 114, 128, 0.3)'
-      }}>
-        <Sparkles style={{ 
-          width: isMobile ? '24px' : '32px', 
-          height: isMobile ? '24px' : '32px'
-        }} />
-      </div>
-
-      <h2 style={{
-        fontSize: isMobile ? '20px' : '28px',
-        fontWeight: 'bold',
-        marginBottom: '12px',
-        color: '#f3f4f6'
-      }}>
-        DevAI Agent
-      </h2>
-
-      <p style={{
-        fontSize: isMobile ? '14px' : '18px',
-        color: '#9ca3af',
-        marginBottom: '24px'
-      }}>
-        {hasApiKey && isBackendConnected
-          ? 'Sube un proyecto o haz una pregunta para comenzar'
-          : !isBackendConnected 
-            ? 'Conecta el backend para comenzar'
-            : 'Configura tu API key para comenzar'
-        }
-      </p>
-
-      <div style={{
-        display: 'flex',
-        gap: '16px',
-        justifyContent: 'center',
-        flexDirection: isMobile ? 'column' : 'row'
-      }}>
-        {hasApiKey && isBackendConnected && (
-          <button
-            onClick={onFileUpload}
-            style={{
-              padding: isMobile ? '12px 18px' : '16px 24px',
-              backgroundColor: '#2563eb',
-              border: 'none',
-              borderRadius: '10px',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: isMobile ? '14px' : '16px',
-              fontWeight: '500',
-              transition: 'background 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#1d4ed8'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#2563eb'}
-          >
-            📁 Subir Proyecto
-          </button>
-        )}
-        
-        <button
-          onClick={onSettingsOpen}
-          style={{
-            padding: isMobile ? '12px 18px' : '16px 24px',
-            backgroundColor: (hasApiKey && isBackendConnected) ? 'rgba(55, 65, 81, 0.5)' : '#f59e0b',
-            border: 'none',
-            borderRadius: '10px',
-            color: 'white',
-            cursor: 'pointer',
-            fontSize: isMobile ? '14px' : '16px',
-            fontWeight: '500',
-            transition: 'background 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.backgroundColor = (hasApiKey && isBackendConnected) ? '#374151' : '#eab308';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.backgroundColor = (hasApiKey && isBackendConnected) ? 'rgba(55, 65, 81, 0.5)' : '#f59e0b';
-          }}
-        >
-          ⚙️ {(hasApiKey && isBackendConnected) ? 'Configuración' : 'Configurar'}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/**
- * Welcome screen específico para cuando no hay API key (más grande)
- */
-export const SetupWelcomeScreen = ({ 
-  isMobile, 
-  onSettingsOpen,
-  availableProviders = ['gemini', 'groq', 'huggingface', 'ollama']
-}) => {
-  const { isBackendConnected } = useApp();
-  const baseScale = isMobile ? 1 : 1.2;
-
-  return (
-    <div style={{
-      textAlign: 'center',
-      padding: isMobile ? '32px 16px' : '64px 48px',
-      maxWidth: '700px',
-      margin: '0 auto',
-      transform: `scale(${baseScale})`,
-      transformOrigin: 'center top'
-    }}>
-      {/* Warning icon */}
-      <div style={{
-        width: isMobile ? '64px' : '96px',
-        height: isMobile ? '64px' : '96px',
-        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-        borderRadius: '18px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        margin: '0 auto 24px',
-        boxShadow: '0 12px 40px rgba(245, 158, 11, 0.4)'
-      }}>
-        <Settings style={{ 
-          width: isMobile ? '32px' : '48px', 
-          height: isMobile ? '32px' : '48px'
-        }} />
-      </div>
-
-      <h1 style={{
-        fontSize: isMobile ? '24px' : '36px',
-        fontWeight: 'bold',
-        marginBottom: '16px',
-        color: '#f59e0b'
-      }}>
-        ¡Configuración Necesaria!
-      </h1>
-
-      <p style={{
-        fontSize: isMobile ? '16px' : '22px',
-        color: '#d1d5db',
-        marginBottom: '32px',
-        lineHeight: '1.5'
-      }}>
-        Para usar DevAI Agent necesitas {!isBackendConnected ? 'backend y ' : ''}configurar al menos una API key
-      </p>
-
-      {/* Backend warning */}
-      {!isBackendConnected && (
-        <div style={{
-          marginBottom: '24px',
-          padding: '20px',
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          border: '2px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: '12px'
-        }}>
-          <h3 style={{
-            fontSize: '18px',
-            fontWeight: '600',
-            marginBottom: '8px',
-            color: '#fca5a5',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            justifyContent: 'center'
-          }}>
-            <WifiOff style={{ width: '20px', height: '20px' }} />
-            Backend Requerido
-          </h3>
-          <p style={{ fontSize: '14px', color: '#d1d5db', margin: 0 }}>
-            Inicia tu servidor backend antes de configurar las APIs
-          </p>
-        </div>
-      )}
-
-      {/* Available providers */}
-      <div style={{
-        backgroundColor: 'rgba(31, 41, 55, 0.6)',
-        borderRadius: '16px',
-        padding: '28px',
-        marginBottom: '32px',
-        border: '2px solid rgba(55, 65, 81, 0.5)'
-      }}>
-        <h3 style={{
-          fontSize: '20px',
-          fontWeight: '600',
-          marginBottom: '16px',
-          color: '#f3f4f6'
-        }}>
-          🆓 APIs Gratuitas Disponibles:
-        </h3>
-        
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-          gap: '12px',
-          fontSize: '16px',
-          color: '#d1d5db'
-        }}>
-          {availableProviders.map(provider => (
-            <div key={provider} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '12px'
-            }}>
-              <span>✅</span>
-              <span style={{ textTransform: 'capitalize', fontWeight: '500' }}>
-                {provider}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Setup button */}
-      <button
-        onClick={onSettingsOpen}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '16px',
-          padding: '20px 40px',
-          background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-          border: 'none',
-          borderRadius: '16px',
-          color: 'white',
-          cursor: 'pointer',
-          fontSize: '20px',
-          fontWeight: '600',
-          margin: '0 auto',
-          transition: 'all 0.3s ease',
-          boxShadow: '0 6px 20px rgba(245, 158, 11, 0.4)'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'translateY(-3px)';
-          e.target.style.boxShadow = '0 8px 25px rgba(245, 158, 11, 0.5)';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'translateY(0)';
-          e.target.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
-        }}
-      >
-        <Settings style={{ width: '24px', height: '24px' }} />
-        <span>Configurar {!isBackendConnected ? 'Backend y ' : ''}APIs</span>
-      </button>
-
-      {/* Help text */}
-      <p style={{
-        fontSize: '14px',
-        color: '#6b7280',
-        marginTop: '20px',
-        lineHeight: '1.5'
-      }}>
-        💡 Todas las APIs tienen planes gratuitos generosos.<br />
-        {isBackendConnected ? 'Solo necesitas una para comenzar.' : 'Primero conecta el backend, luego configura las APIs.'}
-      </p>
-    </div>
-  );
-};
-
-// Añadir keyframes para la animación de spin
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(style);
 
 export default WelcomeScreen;

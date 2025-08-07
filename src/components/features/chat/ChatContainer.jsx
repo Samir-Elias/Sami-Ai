@@ -1,5 +1,5 @@
 // ============================================
-// 💬 CHAT CONTAINER COMPONENT - COMPLETAMENTE FUNCIONAL
+// 💬 CHAT CONTAINER COMPONENT - SIN RESTRICCIONES DE ARCHIVOS
 // ============================================
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -8,14 +8,14 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import ThinkingIndicator from './ThinkingIndicator';
 
-// Contexto unificado
+// ✅ CONTEXTO ACTUALIZADO
 import { useApp, useBackendStatus, useAPI } from '../../../context/AppContext';
 
 /**
- * Contenedor principal del chat con estado vacío centrado
+ * Contenedor principal del chat - FUNCIONA SIN ARCHIVOS
  */
 const ChatContainer = ({
-  messages = [], // ✅ Valor por defecto
+  messages = [],
   input = '',
   isLoading = false,
   thinkingProcess = '',
@@ -26,14 +26,15 @@ const ChatContainer = ({
   onFileUpload
 }) => {
   const messagesEndRef = useRef(null);
-  const [localMessages, setLocalMessages] = useState(messages);
+  const [localInput, setLocalInput] = useState(input);
 
-  // ✅ Usar contexto unificado como backup
+  // ✅ CONTEXTO ACTUALIZADO - permite uso offline
   const appContext = useApp();
   const { 
     messages: contextMessages = [],
     conversation,
-    currentProvider = 'gemini'
+    currentProvider = 'gemini',
+    offlineMode
   } = appContext || {};
 
   const { isConnected: isBackendConnected = false } = useBackendStatus() || {};
@@ -42,6 +43,7 @@ const ChatContainer = ({
   // ✅ Usar mensajes del contexto si no hay props
   const displayMessages = messages.length > 0 ? messages : contextMessages;
   const displayLoading = isLoading || apiLoading;
+  const canUseChat = isBackendConnected || offlineMode; // ✅ Permitir chat offline
 
   // Auto scroll al final cuando hay nuevos mensajes
   useEffect(() => {
@@ -50,79 +52,104 @@ const ChatContainer = ({
     }
   }, [displayMessages, displayLoading, thinkingProcess]);
 
-  // ✅ Sincronizar mensajes locales
+  // Sincronizar input local con prop
   useEffect(() => {
-    setLocalMessages(displayMessages);
-  }, [displayMessages]);
+    setLocalInput(input);
+  }, [input]);
 
-  // ✅ Handler de envío con validación
+  // ✅ HANDLER MEJORADO - funciona sin backend
   const handleSendMessage = async () => {
-    if (typeof onSendMessage === 'function') {
-      await onSendMessage();
-    } else if (conversation?.addMessage && api?.chatWithAI) {
-      // Fallback usando contexto directamente
-      await handleDirectSend();
-    }
-  };
+    const messageText = localInput.trim();
+    if (!messageText) return;
 
-  // ✅ Envío directo usando contexto
-  const handleDirectSend = async () => {
-    if (!input.trim() || displayLoading) return;
-
-    const userMessage = {
-      role: 'user',
-      content: input.trim(),
-      timestamp: new Date()
-    };
-
-    // Agregar mensaje del usuario
-    if (conversation?.addMessage) {
-      conversation.addMessage(userMessage);
+    // ✅ Validación mínima - no requiere archivos
+    if (!canUseChat) {
+      alert('No se puede enviar mensajes. Configura una API key en Settings.');
+      return;
     }
 
     try {
-      // Llamar a la API
-      const response = await api.chatWithAI([...displayMessages, userMessage], {
-        provider: currentProvider
-      });
+      // Limpiar input inmediatamente
+      setLocalInput('');
+      if (onInputChange) onInputChange('');
 
-      // Agregar respuesta
-      const assistantMessage = {
-        role: 'assistant',
-        content: response.content,
+      // Agregar mensaje del usuario
+      const userMessage = {
+        role: 'user',
+        content: messageText,
         timestamp: new Date(),
-        provider: response.provider,
-        model: response.model
+        id: Date.now()
       };
 
       if (conversation?.addMessage) {
-        conversation.addMessage(assistantMessage);
+        conversation.addMessage(userMessage);
       }
 
-    } catch (error) {
-      console.error('Error en chat:', error);
-      
-      // Agregar mensaje de error
-      const errorMessage = {
-        role: 'assistant',
-        content: `❌ Error: ${error.message}`,
-        timestamp: new Date(),
-        isError: true
-      };
+      // Preparar mensajes para la API
+      const chatMessages = [...displayMessages, userMessage];
 
+      // ✅ Llamar a la API (backend o directa)
+      if (onSendMessage && typeof onSendMessage === 'function') {
+        // Usar handler personalizado si existe
+        await onSendMessage();
+      } else {
+        // ✅ Usar API directamente desde el contexto
+        const response = await api.chatWithAI(chatMessages, {
+          provider: currentProvider
+        });
+
+        // Agregar respuesta de la IA
+        const assistantMessage = {
+          role: 'assistant',
+          content: response.content,
+          timestamp: new Date(),
+          id: Date.now() + 1,
+          provider: response.provider,
+          model: response.model,
+          usage: response.usage
+        };
+
+        if (conversation?.addMessage) {
+          conversation.addMessage(assistantMessage);
+        }
+      }
+    } catch (error) {
+      console.error('Error enviando mensaje:', error);
+      
+      // Restaurar input si hay error
+      setLocalInput(messageText);
+      if (onInputChange) onInputChange(messageText);
+      
+      // Mostrar error al usuario
       if (conversation?.addMessage) {
+        const errorMessage = {
+          role: 'assistant',
+          content: `❌ Error: ${error.message}`,
+          timestamp: new Date(),
+          id: Date.now() + 2,
+          isError: true
+        };
         conversation.addMessage(errorMessage);
       }
     }
   };
 
+  // ✅ Handler para cambios en el input
+  const handleInputChange = (value) => {
+    setLocalInput(value);
+    if (onInputChange) onInputChange(value);
+  };
+
   return (
-    <div style={{
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden'
-    }}>
+    <div 
+      className="fade-in-up"
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}
+    >
       {/* Área de mensajes */}
       <div style={{
         flex: 1,
@@ -131,13 +158,20 @@ const ChatContainer = ({
         display: 'flex',
         flexDirection: 'column'
       }}>
-        {/* Estado vacío centrado o mensajes */}
+        {/* ✅ SIEMPRE MOSTRAR CHAT - no requiere archivos */}
         {displayMessages.length === 0 && !displayLoading ? (
           <CenteredEmptyState 
             isMobile={isMobile}
             currentProject={currentProject}
             onFileUpload={onFileUpload}
+            canUseChat={canUseChat}
             isBackendConnected={isBackendConnected}
+            offlineMode={offlineMode}
+            onStartChat={() => {
+              // Focus en el input para comenzar a escribir
+              const inputElement = document.querySelector('textarea');
+              if (inputElement) inputElement.focus();
+            }}
           />
         ) : (
           <div style={{
@@ -176,14 +210,15 @@ const ChatContainer = ({
         )}
       </div>
 
-      {/* Input de mensajes */}
+      {/* ✅ INPUT SIEMPRE VISIBLE */}
       <MessageInput
-        value={input}
+        value={localInput}
         isLoading={displayLoading}
         currentProject={currentProject}
         isMobile={isMobile}
+        canUseChat={canUseChat}
         isBackendConnected={isBackendConnected}
-        onChange={onInputChange}
+        onChange={handleInputChange}
         onSend={handleSendMessage}
         onFileUpload={onFileUpload}
       />
@@ -192,18 +227,19 @@ const ChatContainer = ({
 };
 
 /**
- * ✨ Estado vacío centrado en la pantalla
+ * ✅ Estado vacío MEJORADO - permite chat sin archivos
  */
 const CenteredEmptyState = ({ 
   isMobile, 
   currentProject, 
   onFileUpload,
-  isBackendConnected 
+  canUseChat,
+  isBackendConnected,
+  offlineMode,
+  onStartChat
 }) => {
-  // Crear referencia para el input de archivos
   const fileInputRef = useRef(null);
 
-  // Función para manejar clic en botón de archivo
   const handleFileButtonClick = () => {
     if (onFileUpload && typeof onFileUpload === 'function') {
       onFileUpload();
@@ -213,42 +249,44 @@ const CenteredEmptyState = ({
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100%',
-      textAlign: 'center',
-      padding: isMobile ? '20px' : '40px',
-      maxWidth: '600px',
-      margin: '0 auto'
-    }}>
-      {/* Logo animado */}
-      <div style={{
-        width: isMobile ? '80px' : '120px',
-        height: isMobile ? '80px' : '120px',
-        background: isBackendConnected
-          ? 'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)'
-          : 'linear-gradient(135deg, #6b7280 0%, #374151 100%)',
-        borderRadius: '24px',
+    <div 
+      className="animated-card"
+      style={{
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: '24px',
-        boxShadow: isBackendConnected
-          ? '0 8px 32px rgba(59, 130, 246, 0.3)'
-          : '0 8px 32px rgba(107, 114, 128, 0.3)',
-        animation: 'pulse 2s infinite',
-        position: 'relative'
-      }}>
+        height: '100%',
+        textAlign: 'center',
+        padding: isMobile ? '20px' : '40px',
+        maxWidth: '600px',
+        margin: '0 auto'
+      }}
+    >
+      {/* Logo animado */}
+      <div 
+        className="animated-logo main-logo"
+        style={{
+          width: isMobile ? '80px' : '120px',
+          height: isMobile ? '80px' : '120px',
+          background: canUseChat
+            ? 'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)'
+            : 'linear-gradient(135deg, #6b7280 0%, #374151 100%)',
+          borderRadius: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '24px',
+          position: 'relative'
+        }}
+      >
         <Sparkles style={{ 
           width: isMobile ? '40px' : '60px', 
           height: isMobile ? '40px' : '60px',
           color: 'white'
         }} />
         
-        {/* Indicador de conexión */}
+        {/* Indicador de estado */}
         <div style={{
           position: 'absolute',
           bottom: '8px',
@@ -256,61 +294,67 @@ const CenteredEmptyState = ({
           width: '16px',
           height: '16px',
           borderRadius: '50%',
-          backgroundColor: isBackendConnected ? '#10b981' : '#ef4444',
+          backgroundColor: isBackendConnected ? '#10b981' : offlineMode ? '#f59e0b' : '#ef4444',
           border: '2px solid white',
           boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }} />
       </div>
 
       {/* Mensaje principal */}
-      <h2 style={{
-        fontSize: isMobile ? '24px' : '32px',
-        fontWeight: 'bold',
-        marginBottom: '12px',
-        background: isBackendConnected
-          ? 'linear-gradient(135deg, #60a5fa, #a855f7)'
-          : 'linear-gradient(135deg, #9ca3af, #6b7280)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-        margin: '0 0 12px 0'
-      }}>
-        {currentProject ? 
-          `¡Hola! Pregúntame sobre ${currentProject}` : 
-          isBackendConnected 
-            ? '¡Hola! ¿En qué puedo ayudarte?'
-            : 'Backend desconectado'
+      <h2 
+        className="gentle-float"
+        style={{
+          fontSize: isMobile ? '24px' : '32px',
+          fontWeight: 'bold',
+          marginBottom: '12px',
+          background: canUseChat
+            ? 'linear-gradient(135deg, #60a5fa, #a855f7)'
+            : 'linear-gradient(135deg, #9ca3af, #6b7280)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          margin: '0 0 12px 0'
+        }}
+      >
+        {canUseChat 
+          ? '¡Hola! ¿En qué puedo ayudarte?'
+          : 'Configura tu API para comenzar'
         }
       </h2>
 
       <p style={{
         fontSize: isMobile ? '16px' : '18px',
-        color: isBackendConnected ? '#9ca3af' : '#ef4444',
+        color: canUseChat ? '#9ca3af' : '#ef4444',
         marginBottom: '32px',
         maxWidth: '500px',
         lineHeight: '1.5',
         margin: '0 0 32px 0'
       }}>
-        {!isBackendConnected 
-          ? 'Conecta el backend para comenzar a chatear con la IA'
-          : currentProject 
-            ? `Tengo acceso a los archivos de tu proyecto. Puedo ayudarte con código, bugs, optimizaciones y más.`
-            : 'Escribe tu pregunta abajo o sube un proyecto para comenzar.'
+        {!canUseChat 
+          ? 'Necesitas configurar al menos una API key para usar el chat'
+          : isBackendConnected
+            ? 'Escribe tu pregunta abajo o sube archivos para análisis de código'
+            : offlineMode
+              ? 'Modo offline activo - usando API directa. Escribe tu pregunta abajo.'
+              : 'Escribe tu pregunta para comenzar'
         }
       </p>
 
-      {/* Ejemplos rápidos o estado de error */}
-      {isBackendConnected ? (
+      {/* ✅ EJEMPLOS Y ACCIONES */}
+      {canUseChat ? (
         <QuickExamples 
           isMobile={isMobile} 
           currentProject={currentProject}
           onFileUpload={handleFileButtonClick}
+          onStartChat={onStartChat}
+          isBackendConnected={isBackendConnected}
+          offlineMode={offlineMode}
         />
       ) : (
-        <BackendErrorState />
+        <ConfigurationNeeded />
       )}
 
-      {/* Input de archivos oculto para EmptyState */}
+      {/* Input de archivos oculto */}
       {!currentProject && (
         <input
           ref={fileInputRef}
@@ -322,66 +366,59 @@ const CenteredEmptyState = ({
           webkitdirectory=""
         />
       )}
-
-      {/* CSS para animaciones */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-        }
-      `}</style>
     </div>
   );
 };
 
 /**
- * Estado de error del backend
+ * Estado cuando no hay configuración
  */
-const BackendErrorState = () => (
-  <div style={{
-    padding: '20px',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '2px solid rgba(239, 68, 68, 0.3)',
-    borderRadius: '12px',
-    maxWidth: '400px'
-  }}>
+const ConfigurationNeeded = () => (
+  <div 
+    className="animated-card"
+    style={{
+      padding: '20px',
+      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+      border: '2px solid rgba(239, 68, 68, 0.3)',
+      borderRadius: '12px',
+      maxWidth: '400px'
+    }}
+  >
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
       <AlertCircle style={{ width: '24px', height: '24px', color: '#ef4444' }} />
       <h3 style={{ margin: 0, fontSize: '18px', color: '#fca5a5' }}>
-        Backend Offline
+        Configuración Requerida
       </h3>
     </div>
     <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#fca5a5' }}>
-      Para usar DevAI Agent necesitas iniciar el servidor backend.
+      Para usar DevAI Agent necesitas configurar al menos una API key gratuita.
     </p>
-    <div style={{
-      padding: '12px',
-      backgroundColor: 'rgba(15, 23, 42, 0.5)',
-      borderRadius: '6px',
-      fontSize: '12px',
-      color: '#e2e8f0',
-      fontFamily: 'Monaco, Consolas, monospace'
-    }}>
-      npm run server<br />
-      # o<br />
-      node server.js
-    </div>
+    <p style={{ margin: '0', fontSize: '12px', color: '#9ca3af' }}>
+      💡 Ve a Settings ⚙️ para configurar Gemini, Groq, HuggingFace u Ollama
+    </p>
   </div>
 );
 
 /**
- * Ejemplos rápidos para el usuario
+ * ✅ Ejemplos rápidos MEJORADOS - permiten chat directo
  */
-const QuickExamples = ({ isMobile, currentProject, onFileUpload }) => {
+const QuickExamples = ({ 
+  isMobile, 
+  currentProject, 
+  onFileUpload, 
+  onStartChat,
+  isBackendConnected,
+  offlineMode
+}) => {
   const examples = currentProject ? [
     "¿Qué hace este código?",
     "Encuentra posibles bugs", 
     "Optimiza el rendimiento",
     "Explica esta función"
   ] : [
-    { text: "Crea una landing page moderna", type: "example" },
-    { text: "Explica qué es React", type: "example" },
-    { text: "Ayúdame con CSS Grid", type: "example" },
+    { text: "Crea una landing page moderna", type: "chat" },
+    { text: "Explica qué es React", type: "chat" },
+    { text: "Ayúdame con JavaScript", type: "chat" },
     { text: "📁 Subir proyecto", type: "upload" }
   ];
 
@@ -390,6 +427,15 @@ const QuickExamples = ({ isMobile, currentProject, onFileUpload }) => {
     
     if (item.type === 'upload' && onFileUpload) {
       onFileUpload();
+    } else if (item.type === 'chat' && onStartChat) {
+      // ✅ Llenar el input con el ejemplo
+      const inputElement = document.querySelector('textarea');
+      if (inputElement) {
+        inputElement.value = item.text;
+        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+        inputElement.focus();
+      }
+      onStartChat();
     }
   };
 
@@ -405,45 +451,68 @@ const QuickExamples = ({ isMobile, currentProject, onFileUpload }) => {
         const isString = typeof example === 'string';
         const text = isString ? example : example.text;
         const isUpload = !isString && example.type === 'upload';
+        const isChat = !isString && example.type === 'chat';
         
         return (
           <div
             key={index}
             onClick={() => handleItemClick(example)}
+            className="animated-button interactive-button"
             style={{
               padding: '12px 16px',
-              background: isUpload ? 'rgba(59, 130, 246, 0.1)' : 'rgba(31, 41, 55, 0.5)',
-              border: isUpload ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(55, 65, 81, 0.5)',
+              background: isUpload 
+                ? 'rgba(59, 130, 246, 0.1)' 
+                : isChat
+                  ? 'rgba(34, 197, 94, 0.1)'
+                  : 'rgba(31, 41, 55, 0.5)',
+              border: isUpload 
+                ? '1px solid rgba(59, 130, 246, 0.3)' 
+                : isChat
+                  ? '1px solid rgba(34, 197, 94, 0.3)'
+                  : '1px solid rgba(55, 65, 81, 0.5)',
               borderRadius: '8px',
               fontSize: '13px',
-              color: isUpload ? '#60a5fa' : '#d1d5db',
+              color: isUpload 
+                ? '#60a5fa' 
+                : isChat
+                  ? '#86efac'
+                  : '#d1d5db',
               textAlign: 'center',
               cursor: 'pointer',
               transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (isUpload) {
-                e.target.style.background = 'rgba(59, 130, 246, 0.2)';
-                e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
-              } else {
-                e.target.style.background = 'rgba(55, 65, 81, 0.7)';
-                e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (isUpload) {
-                e.target.style.background = 'rgba(59, 130, 246, 0.1)';
-                e.target.style.borderColor = 'rgba(59, 130, 246, 0.3)';
-              } else {
-                e.target.style.background = 'rgba(31, 41, 55, 0.5)';
-                e.target.style.borderColor = 'rgba(55, 65, 81, 0.5)';
-              }
             }}
           >
             {isString ? `💡 ${text}` : text}
           </div>
         );
       })}
+      
+      {/* ✅ Estado de conexión */}
+      <div style={{
+        gridColumn: isMobile ? '1' : '1 / -1',
+        padding: '8px 12px',
+        backgroundColor: isBackendConnected 
+          ? 'rgba(16, 185, 129, 0.1)' 
+          : offlineMode
+            ? 'rgba(245, 158, 11, 0.1)'
+            : 'rgba(107, 114, 128, 0.1)',
+        border: isBackendConnected
+          ? '1px solid rgba(16, 185, 129, 0.3)'
+          : offlineMode
+            ? '1px solid rgba(245, 158, 11, 0.3)'
+            : '1px solid rgba(107, 114, 128, 0.3)',
+        borderRadius: '6px',
+        fontSize: '12px',
+        textAlign: 'center',
+        color: isBackendConnected ? '#86efac' : offlineMode ? '#fbbf24' : '#9ca3af'
+      }}>
+        {isBackendConnected 
+          ? '🟢 Backend conectado - Funcionalidad completa'
+          : offlineMode
+            ? '🟡 Modo offline - API directa activa'
+            : '🔴 Configuración necesaria'
+        }
+      </div>
     </div>
   );
 };
@@ -452,17 +521,20 @@ const QuickExamples = ({ isMobile, currentProject, onFileUpload }) => {
  * Componente de error
  */
 const ErrorMessage = ({ error, isMobile }) => (
-  <div style={{
-    padding: '12px 16px',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
-    borderRadius: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    maxWidth: isMobile ? '100%' : '600px',
-    margin: '0 auto'
-  }}>
+  <div 
+    className="message-bubble"
+    style={{
+      padding: '12px 16px',
+      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
+      borderRadius: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      maxWidth: isMobile ? '100%' : '600px',
+      margin: '0 auto'
+    }}
+  >
     <AlertCircle style={{ 
       width: '20px', 
       height: '20px', 

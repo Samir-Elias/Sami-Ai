@@ -662,3 +662,203 @@ body[data-env="development"] .dev-only {
 .justify-start { justify-content: flex-start; }
 .justify-end { justify-content: flex-end; }
 .justify-between { justify-content: space-between; }
+/* ============================================ */
+/* 🎨 ANIMACIONES CORREGIDAS - SIN TEXTO ANIMADO */
+/* ============================================ */
+
+/* ✅ ANIMACIÓN DE BARRA MORADA - En la parte superior del header */
+@keyframes progressBarFill {
+  0% {
+    transform: scaleX(0);
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0.9;
+  }
+}
+
+/* ✅ ANIMACIÓN DEL LOGO - Solo shadow, SIN afectar contenido */
+@keyframes logoShadowSweep {
+  0% {
+    box-shadow: 
+      0 8px 32px rgba(59, 130, 246, 0.3),
+      inset -20px -20px 0px rgba(255, 255, 255, 0);
+  }
+  15% {
+    box-shadow: 
+      0 8px 32px rgba(59, 130, 246, 0.4),
+      inset -15px -15px 0px rgba(255, 255, 255, 0.1);
+  }
+  30% {
+    box-shadow: 
+      0 8px 32px rgba(59, 130, 246, 0.5),
+      inset -10px -10px 0px rgba(255, 255, 255, 0.2);
+  }
+  45% {
+    box-shadow: 
+      0 8px 32px rgba(59, 130, 246, 0.6),
+      inset -5px -5px 0px rgba(255, 255, 255, 0.3);
+  }
+  60% {
+    box-shadow: 
+      0 8px 32px rgba(59, 130, 246, 0.7),
+      inset 0px 0px 0px rgba(255, 255, 255, 0.4);
+  }
+  75% {
+    box-shadow: 
+      0 8px 32px rgba(59, 130, 246, 0.6),
+      inset 5px 5px 0px rgba(255, 255, 255, 0.3);
+  }
+  90% {
+    box-shadow: 
+      0 8px 32px rgba(59, 130, 246, 0.4),
+      inset 10px 10px 0px rgba(255, 255, 255, 0.1);
+  }
+  100% {
+    box-shadow: 
+      0 8px 32px rgba(59, 130, 246, 0.3),
+      inset 20px 20px 0px rgba(255, 255, 255, 0);
+  }
+}
+
+/* ✅ ANIMACIONES SUAVES PARA BOTONES - Sin afectar texto */
+@keyframes buttonPress {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+  50% {
+    transform: scale(0.98);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+}
+
+/* ✅ ANIMACIÓN DE APARICIÓN SUAVE */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ✅ PULSO SUTIL - Solo para elementos específicos */
+@keyframes subtlePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+}
+
+/* ✅ SPIN MEJORADO */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ============================================ */
+/* 🎯 CLASES PARA APLICAR */
+/* ============================================ */
+
+/* Botones interactivos - SIN texto animado */
+.interactive-button {
+  transition: all 0.2s ease;
+}
+
+.interactive-button:active {
+  animation: buttonPress 0.1s ease-out;
+}
+
+.interactive-button:hover {
+  transform: translateY(-1px);
+}
+
+/* Cards con hover suave */
+.animated-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animated-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Aparición suave de elementos */
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+/* Pulso sutil - SOLO para indicadores de estado */
+.subtle-pulse {
+  animation: subtlePulse 2s ease-in-out infinite;
+}
+
+/* Spinner de carga */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ============================================ */
+/* 📱 RESPONSIVE - Reducir animaciones en móviles */
+/* ============================================ */
+@media (max-width: 768px) {
+  /* Reducir duración en móviles */
+  @keyframes logoShadowSweep {
+    0%, 100% {
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+    }
+    50% {
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+    }
+  }
+  
+  /* Hacer la barra más rápida en móvil */
+  @keyframes progressBarFill {
+    0% {
+      transform: scaleX(0);
+    }
+    100% {
+      transform: scaleX(1);
+    }
+  }
+}
+
+/* Respetar preferencias de usuario */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes logoShadowSweep {
+    0%, 100% {
+      box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+    }
+  }
+  
+  @keyframes progressBarFill {
+    0% { transform: scaleX(0); }
+    100% { transform: scaleX(1); }
+  }
+  
+  .subtle-pulse {
+    animation: none;
+  }
+}
+
+/* ============================================ */
+/* 🔧 UTILIDADES DE DELAY */
+/* ============================================ */
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
