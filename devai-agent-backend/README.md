@@ -1,548 +1,582 @@
 # 🤖 DevAI Agent Backend
 
-> **Un backend potente y escalable para aplicaciones de IA con múltiples proveedores y gestión completa de conversaciones.**
+> AI-powered development assistant backend API built with Node.js, Express, Prisma, and multiple AI providers.
 
-![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
-![Express](https://img.shields.io/badge/Express-4.x-blue.svg)
-![Prisma](https://img.shields.io/badge/Prisma-5.x-2D3748.svg)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)
-![Redis](https://img.shields.io/badge/Redis-7.x-red.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express-4.x-blue.svg)](https://expressjs.com/)
+[![Prisma](https://img.shields.io/badge/Prisma-5.x-blueviolet.svg)](https://prisma.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7.x-red.svg)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://docker.com/)
 
-## 🚀 Características Principales
+## 📋 Table of Contents
 
-### 🔐 **Autenticación y Seguridad**
-- Autenticación JWT con refresh tokens
-- Validación robusta de contraseñas
-- Rate limiting inteligente
-- Middleware de seguridad completo
-- Logging de auditoría
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Running the Application](#-running-the-application)
+- [API Documentation](#-api-documentation)
+- [Project Structure](#-project-structure)
+- [Development](#-development)
+- [Deployment](#-deployment)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-### 🤖 **Integración Multi-IA**
-- **Gemini** - Google AI
-- **Groq** - Inferencia ultra-rápida
-- **HuggingFace** - Modelos open source
-- **Ollama** - Modelos locales
-- Sistema de routing inteligente
+## ✨ Features
 
-### 💬 **Gestión de Conversaciones**
-- Conversaciones persistentes
-- Historial completo de mensajes
-- Contexto inteligente
-- Búsqueda avanzada
-- Exportación de datos
+### Core Features
+- 🔐 **Authentication & Authorization** - JWT-based auth with refresh tokens
+- 👥 **User Management** - Registration, profiles, roles (admin, user, moderator)
+- 💬 **Conversations** - Chat history and conversation management
+- 📁 **File Upload** - Secure file handling with validation
+- 🎯 **Projects** - Project organization and management
 
-### 📁 **Gestión de Archivos**
-- Upload seguro y validado
-- Múltiples tipos de archivo
-- Procesamiento automático
-- Almacenamiento organizado
-- Compresión inteligente
+### AI Integration
+- 🧠 **Multiple AI Providers**
+  - Google Gemini
+  - Groq (Mixtral, Llama2)
+  - HuggingFace
+  - Ollama (local models)
+- 🔄 **AI Router** - Intelligent provider switching
+- 📊 **Token Tracking** - Usage analytics and monitoring
 
-### 📊 **Proyectos y Analíticas**
-- Gestión de proyectos de IA
-- Métricas de uso detalladas
-- Dashboard de analíticas
-- Reportes automáticos
-- Insights de rendimiento
+### Security & Performance
+- 🛡️ **Security Headers** - Helmet.js protection
+- 🚦 **Rate Limiting** - Configurable limits per endpoint
+- 🔒 **Input Validation** - Comprehensive data validation
+- 📝 **Logging** - Winston-based structured logging
+- 🗂️ **Caching** - Redis-powered caching layer
 
-## 🛠️ Stack Tecnológico
+### Developer Experience
+- 📖 **API Documentation** - Swagger/OpenAPI docs
+- 🐳 **Docker Support** - Complete containerization
+- 🧪 **Testing Ready** - Vitest setup
+- 🔧 **Hot Reload** - Nodemon development server
+- 📊 **Health Checks** - Built-in monitoring endpoints
 
-| Categoría | Tecnología | Versión |
-|-----------|-----------|---------|
-| **Runtime** | Node.js | 18+ |
-| **Framework** | Express.js | 4.x |
-| **Base de Datos** | PostgreSQL | 15+ |
-| **ORM** | Prisma | 5.x |
-| **Cache** | Redis | 7.x |
-| **Autenticación** | JWT | - |
-| **Validación** | Express Validator | 7.x |
-| **Logging** | Winston | 3.x |
-| **Documentación** | Swagger | 3.x |
-| **Contenedores** | Docker | - |
+## 🛠 Tech Stack
 
-## 📦 Instalación Rápida
+| Category | Technologies |
+|----------|-------------|
+| **Runtime** | Node.js 18+, Express.js 4.x |
+| **Database** | PostgreSQL 15+, Prisma ORM |
+| **Caching** | Redis 7.x |
+| **Authentication** | JWT, bcryptjs |
+| **Validation** | express-validator, custom validators |
+| **File Upload** | Multer with security validation |
+| **Logging** | Winston with daily rotation |
+| **Documentation** | Swagger/OpenAPI 3.0 |
+| **Security** | Helmet.js, CORS, Rate limiting |
+| **Testing** | Vitest, Supertest |
+| **Development** | Nodemon, ESLint, Prettier |
+| **Containerization** | Docker, Docker Compose |
 
-### 📋 Prerrequisitos
+## 📋 Prerequisites
 
+Before running this project, make sure you have:
+
+- **Node.js** 18.0 or higher
+- **npm** 9.0 or higher (or **yarn** 1.22+)
+- **PostgreSQL** 15.0 or higher
+- **Redis** 7.0 or higher (optional, for caching)
+- **Docker** and **Docker Compose** (for containerized setup)
+
+## 🚀 Installation
+
+### Option 1: Local Development Setup
+
+1. **Clone the repository**
 ```bash
-# Node.js 18 o superior
-node --version  # v18.0.0+
-
-# npm o yarn
-npm --version   # 9.0.0+
-
-# Docker (opcional pero recomendado)
-docker --version
+git clone https://github.com/your-username/devai-agent-backend.git
+cd devai-agent-backend
 ```
 
-### 🔧 Configuración del Entorno
-
+2. **Install dependencies**
 ```bash
-# 1. Clonar repositorio
-git clone <tu-repositorio>
-cd devai-agent-backend
-
-# 2. Instalar dependencias
 npm install
+```
 
-# 3. Configurar variables de entorno
+3. **Set up environment variables**
+```bash
 cp .env.example .env
-# Editar .env con tus configuraciones
+# Edit .env with your configuration (see Configuration section)
+```
 
-# 4. Levantar servicios con Docker
-docker-compose up -d
+4. **Set up the database**
+```bash
+# Create PostgreSQL database
+createdb devai_agent
 
-# 5. Configurar base de datos
+# Generate Prisma client
 npx prisma generate
-npx prisma migrate dev
-npm run db:seed
 
-# 6. ¡Iniciar el servidor!
+# Run migrations
+npx prisma migrate dev
+
+# Seed initial data (optional)
+npm run db:seed
+```
+
+5. **Start development server**
+```bash
 npm run dev
 ```
 
-### 🌐 URLs de Acceso
+### Option 2: Docker Setup
 
+1. **Clone and configure**
 ```bash
-🖥️  Servidor principal:     http://localhost:3001
-📚  Documentación API:      http://localhost:3001/api-docs
-🩺  Health check:           http://localhost:3001/health
-📊  Status detallado:       http://localhost:3001/status
-🔗  API v1:                 http://localhost:3001/api/v1
+git clone https://github.com/your-username/devai-agent-backend.git
+cd devai-agent-backend
+cp .env.example .env
+# Edit .env as needed
 ```
 
-## 📁 Estructura del Proyecto
-
-```
-devai-agent-backend/
-├── 📄 package.json                 # Dependencias y scripts
-├── 📄 docker-compose.yml           # Servicios Docker
-├── 📄 Dockerfile                   # Imagen Docker
-├── 📄 .env.example                 # Variables de entorno
-├── 📄 README.md                    # Este archivo
-├── 📄 nodemon.json                 # Configuración nodemon
-│
-├── 📂 src/                         # Código fuente
-│   ├── 📄 app.js                   # Configuración Express
-│   ├── 📄 server.js                # Punto de entrada
-│   │
-│   ├── 📂 config/                  # Configuraciones
-│   │   ├── 📄 database.js          # Conexión DB
-│   │   ├── 📄 redis.js             # Conexión Redis
-│   │   ├── 📄 jwt.js               # Configuración JWT
-│   │   ├── 📄 logger.js            # Sistema de logs
-│   │   ├── 📄 swagger.js           # Documentación API
-│   │   └── 📄 upload.js            # Configuración uploads
-│   │
-│   ├── 📂 middleware/              # Middlewares
-│   │   ├── 📄 auth.js              # Autenticación
-│   │   ├── 📄 validation.js        # Validaciones
-│   │   ├── 📄 rateLimit.js         # Rate limiting
-│   │   ├── 📄 error.js             # Manejo errores
-│   │   ├── 📄 logger.js            # Logging requests
-│   │   └── 📄 upload.js            # Upload archivos
-│   │
-│   ├── 📂 routes/                  # Rutas de la API
-│   │   ├── 📄 index.js             # Router principal
-│   │   ├── 📄 auth.js              # Autenticación ✅
-│   │   ├── 📄 users.js             # Usuarios
-│   │   ├── 📄 conversations.js     # Conversaciones
-│   │   ├── 📄 messages.js          # Mensajes
-│   │   ├── 📄 projects.js          # Proyectos
-│   │   ├── 📄 files.js             # Archivos
-│   │   ├── 📄 ai.js                # IA
-│   │   └── 📄 analytics.js         # Analíticas
-│   │
-│   ├── 📂 controllers/             # Controladores
-│   │   ├── 📄 authController.js    # Auth ✅
-│   │   ├── 📄 userController.js    # Usuarios
-│   │   ├── 📄 conversationController.js
-│   │   ├── 📄 messageController.js
-│   │   ├── 📄 projectController.js
-│   │   ├── 📄 fileController.js
-│   │   ├── 📄 aiController.js
-│   │   └── 📄 analyticsController.js
-│   │
-│   ├── 📂 services/                # Lógica de negocio
-│   │   ├── 📄 authService.js
-│   │   ├── 📄 userService.js
-│   │   ├── 📄 conversationService.js
-│   │   ├── 📄 messageService.js
-│   │   ├── 📄 projectService.js
-│   │   ├── 📄 fileService.js
-│   │   ├── 📄 aiService.js
-│   │   ├── 📄 cacheService.js
-│   │   ├── 📄 emailService.js
-│   │   └── 📄 analyticsService.js
-│   │
-│   ├── 📂 models/                  # Modelos de datos
-│   │   ├── 📄 User.js
-│   │   ├── 📄 Conversation.js
-│   │   ├── 📄 Message.js
-│   │   ├── 📄 Project.js
-│   │   ├── 📄 File.js
-│   │   └── 📄 ApiKey.js
-│   │
-│   ├── 📂 ai/                      # Integraciones IA
-│   │   ├── 📄 geminiClient.js
-│   │   ├── 📄 groqClient.js
-│   │   ├── 📄 huggingfaceClient.js
-│   │   ├── 📄 ollamaClient.js
-│   │   └── 📄 aiRouter.js
-│   │
-│   ├── 📂 utils/                   # Utilidades
-│   │   ├── 📄 constants.js         # Constantes
-│   │   ├── 📄 helpers.js           # Funciones auxiliares
-│   │   ├── 📄 validators.js        # Validadores ✅
-│   │   ├── 📄 encryption.js        # Encriptación
-│   │   ├── 📄 fileUtils.js         # Utilidades archivos
-│   │   ├── 📄 dateUtils.js         # Utilidades fechas
-│   │   └── 📄 responseUtils.js     # Respuestas API
-│   │
-│   └── 📂 database/                # Base de datos
-│       ├── 📄 schema.prisma        # Schema Prisma ✅
-│       └── 📄 seed.js              # Datos iniciales ✅
-│
-├── 📂 storage/                     # Almacenamiento
-│   ├── 📂 uploads/                 # Archivos subidos
-│   │   ├── 📂 images/
-│   │   ├── 📂 documents/
-│   │   ├── 📂 code/
-│   │   └── 📂 archives/
-│   ├── 📂 temp/                    # Archivos temporales
-│   ├── 📂 logs/                    # Logs del sistema
-│   └── 📂 backups/                 # Respaldos
-│
-├── 📂 tests/                       # Tests
-│   ├── 📂 unit/                    # Tests unitarios
-│   ├── 📂 integration/             # Tests integración
-│   └── 📂 fixtures/                # Datos de prueba
-│
-├── 📂 docs/                        # Documentación
-│   └── 📂 swagger/                 # Specs OpenAPI
-│
-└── 📂 scripts/                     # Scripts utilidad
-```
-
-## 🔧 Scripts Disponibles
-
+2. **Start with Docker Compose**
 ```bash
-# 🚀 Desarrollo
-npm run dev              # Iniciar con nodemon
-npm start                # Iniciar en producción
-
-# 🗄️ Base de datos
-npm run db:generate      # Generar Prisma client
-npm run db:migrate       # Ejecutar migraciones
-npm run db:seed          # Cargar datos iniciales
-npm run db:reset         # Resetear BD (dev only)
-npm run db:studio        # Abrir Prisma Studio
-
-# 🧪 Testing
-npm test                 # Ejecutar tests
-npm run test:watch       # Tests en modo watch
-npm run test:coverage    # Tests con cobertura
-
-# 🔍 Calidad de código
-npm run lint             # ESLint
-npm run lint:fix         # Arreglar errores ESLint
-npm run format           # Prettier
-
-# 🐳 Docker
-npm run docker:build     # Construir imagen
-npm run docker:up        # Levantar servicios
-npm run docker:down      # Bajar servicios
-
-# 📦 Producción
-npm run build            # Preparar para producción
-npm run pm2:start        # Iniciar con PM2
-npm run pm2:stop         # Parar PM2
-```
-
-## 🌍 Variables de Entorno
-
-### 📋 Requeridas
-
-```bash
-# Base de datos
-DATABASE_URL="postgresql://usuario:password@localhost:5432/devai_agent"
-
-# JWT
-JWT_SECRET="tu-clave-secreta-muy-segura-de-al-menos-32-caracteres"
-
-# Entorno
-NODE_ENV="development"
-PORT=3001
-```
-
-### 🔧 Opcionales
-
-```bash
-# Redis (opcional)
-REDIS_URL="redis://localhost:6379"
-
-# APIs de IA
-GEMINI_API_KEY="tu-clave-gemini"
-GROQ_API_KEY="tu-clave-groq"
-HUGGINGFACE_API_KEY="tu-clave-huggingface"
-OLLAMA_URL="http://localhost:11434"
-
-# Email (futuro)
-SMTP_HOST="smtp.ejemplo.com"
-SMTP_PORT=587
-SMTP_USER="tu-email"
-SMTP_PASS="tu-password"
-
-# Frontend
-FRONTEND_URL="http://localhost:3000"
-
-# Configuraciones adicionales
-JWT_EXPIRES_IN="24h"
-JWT_REFRESH_EXPIRES_IN="7d"
-UPLOAD_MAX_SIZE="50mb"
-```
-
-## 🚀 API Endpoints
-
-### 🔐 Autenticación
-```
-POST   /api/v1/auth/register     # Registrar usuario
-POST   /api/v1/auth/login        # Iniciar sesión
-POST   /api/v1/auth/logout       # Cerrar sesión
-POST   /api/v1/auth/refresh      # Renovar token
-GET    /api/v1/auth/profile      # Obtener perfil
-GET    /api/v1/auth/verify       # Verificar token
-```
-
-### 👤 Usuarios
-```
-GET    /api/v1/users             # Listar usuarios
-GET    /api/v1/users/profile     # Mi perfil
-PUT    /api/v1/users/profile     # Actualizar perfil
-DELETE /api/v1/users/profile     # Eliminar cuenta
-```
-
-### 💬 Conversaciones
-```
-GET    /api/v1/conversations     # Mis conversaciones
-POST   /api/v1/conversations     # Nueva conversación
-GET    /api/v1/conversations/:id # Obtener conversación
-PUT    /api/v1/conversations/:id # Actualizar conversación
-DELETE /api/v1/conversations/:id # Eliminar conversación
-```
-
-### 📝 Mensajes
-```
-GET    /api/v1/conversations/:id/messages  # Mensajes
-POST   /api/v1/conversations/:id/messages  # Nuevo mensaje
-GET    /api/v1/messages/:id                # Obtener mensaje
-PUT    /api/v1/messages/:id                # Actualizar mensaje
-DELETE /api/v1/messages/:id                # Eliminar mensaje
-```
-
-### 🤖 IA
-```
-POST   /api/v1/ai/chat          # Chat con IA
-GET    /api/v1/ai/models        # Modelos disponibles
-GET    /api/v1/ai/providers     # Proveedores activos
-```
-
-### 📁 Archivos
-```
-POST   /api/v1/files/upload     # Subir archivo
-GET    /api/v1/files            # Mis archivos
-GET    /api/v1/files/:id        # Obtener archivo
-DELETE /api/v1/files/:id        # Eliminar archivo
-```
-
-## 🧪 Testing
-
-```bash
-# Ejecutar todos los tests
-npm test
-
-# Tests específicos
-npm test -- --grep "auth"
-
-# Tests con cobertura
-npm run test:coverage
-
-# Tests en modo watch
-npm run test:watch
-```
-
-## 🚢 Deployment
-
-### 🐳 Docker
-
-```bash
-# Construir imagen
-docker build -t devai-agent-backend .
-
-# Ejecutar contenedor
-docker run -p 3001:3001 --env-file .env devai-agent-backend
-
-# Usando docker-compose
 docker-compose up -d
 ```
 
-### ☁️ Vercel/Railway/Render
-
+3. **Initialize database**
 ```bash
-# 1. Configurar variables de entorno en la plataforma
-# 2. Conectar repositorio
-# 3. La plataforma detectará automáticamente el proyecto Node.js
+docker-compose exec api npm run db:setup
 ```
 
-### 🖥️ VPS/Servidor
+## ⚙️ Configuration
 
+### Environment Variables
+
+Create a `.env` file with the following variables:
+
+```env
+# Server Configuration
+NODE_ENV=development
+PORT=3001
+HOST=0.0.0.0
+
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/devai_agent"
+
+# Redis (Optional)
+REDIS_URL="redis://localhost:6379"
+
+# JWT Configuration
+JWT_SECRET="your-super-secret-jwt-key-minimum-32-characters"
+JWT_EXPIRES_IN="24h"
+JWT_REFRESH_EXPIRES_IN="7d"
+
+# Frontend URL (for CORS)
+FRONTEND_URL="http://localhost:3000"
+
+# AI Providers (Optional - add as needed)
+GEMINI_API_KEY="your-gemini-api-key"
+GROQ_API_KEY="your-groq-api-key"
+HUGGINGFACE_API_KEY="your-huggingface-api-key"
+OLLAMA_URL="http://localhost:11434"
+
+# File Upload
+MAX_FILE_SIZE="50mb"
+UPLOAD_PATH="./storage/uploads"
+
+# Logging
+LOG_LEVEL="info"
+LOG_PATH="./storage/logs"
+
+# Email (for future features)
+SMTP_HOST=""
+SMTP_PORT=""
+SMTP_USER=""
+SMTP_PASS=""
+```
+
+### Database Configuration
+
+The application uses PostgreSQL with Prisma ORM. The database schema includes:
+
+- **Users** - Authentication and profile management
+- **Conversations** - Chat history
+- **Messages** - Individual chat messages
+- **Projects** - Project organization
+- **Files** - File upload tracking
+
+### AI Provider Setup
+
+Configure one or more AI providers:
+
+#### Google Gemini
+```env
+GEMINI_API_KEY="your-api-key"
+```
+
+#### Groq
+```env
+GROQ_API_KEY="your-api-key"
+```
+
+#### HuggingFace
+```env
+HUGGINGFACE_API_KEY="your-api-key"
+```
+
+#### Ollama (Local)
+```env
+OLLAMA_URL="http://localhost:11434"
+```
+
+## 🏃 Running the Application
+
+### Development Mode
 ```bash
-# 1. Clonar repositorio
-git clone <tu-repo>
-cd devai-agent-backend
+npm run dev
+```
+- Runs with nodemon for hot reloading
+- Available at `http://localhost:3001`
+- API docs at `http://localhost:3001/api-docs`
 
-# 2. Instalar dependencias
-npm ci --production
+### Production Mode
+```bash
+npm start
+```
 
-# 3. Configurar PM2
+### Available Scripts
+- `npm run dev` - Start development server
+- `npm run start` - Start production server
+- `npm run build` - Build for production
+- `npm run test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run lint` - Run ESLint
+- `npm run format` - Format code with Prettier
+- `npm run db:generate` - Generate Prisma client
+- `npm run db:migrate` - Run database migrations
+- `npm run db:seed` - Seed database with initial data
+- `npm run db:reset` - Reset database
+- `npm run db:studio` - Open Prisma Studio
+
+### Health Checks
+
+- **Health Check**: `GET /health`
+- **Status**: `GET /status` (detailed system information)
+- **API Info**: `GET /api/v1`
+
+## 📚 API Documentation
+
+### Interactive Documentation
+Visit `http://localhost:3001/api-docs` for interactive Swagger documentation.
+
+### Main API Endpoints
+
+#### Authentication
+- `POST /api/v1/auth/register` - Register new user
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/logout` - User logout
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `GET /api/v1/auth/profile` - Get user profile
+- `GET /api/v1/auth/verify` - Verify token
+
+#### Users
+- `GET /api/v1/users` - List users (admin only)
+- `GET /api/v1/users/profile` - Get current user profile
+- `PUT /api/v1/users/profile` - Update profile
+- `PUT /api/v1/users/password` - Change password
+- `DELETE /api/v1/users/profile` - Deactivate account
+- `GET /api/v1/users/:id` - Get user by ID
+- `PUT /api/v1/users/:id/role` - Update user role (admin)
+
+#### Conversations (Coming Soon)
+- `GET /api/v1/conversations` - List conversations
+- `POST /api/v1/conversations` - Create conversation
+- `GET /api/v1/conversations/:id` - Get conversation
+- `PUT /api/v1/conversations/:id` - Update conversation
+- `DELETE /api/v1/conversations/:id` - Delete conversation
+
+#### Messages (Coming Soon)
+- `GET /api/v1/conversations/:id/messages` - Get messages
+- `POST /api/v1/conversations/:id/messages` - Send message
+
+#### AI Integration (Coming Soon)
+- `POST /api/v1/ai/chat` - Chat with AI
+- `GET /api/v1/ai/models` - List available models
+- `GET /api/v1/ai/providers` - List AI providers
+
+#### Files (Coming Soon)
+- `POST /api/v1/files/upload` - Upload file
+- `GET /api/v1/files` - List files
+- `GET /api/v1/files/:id` - Get file info
+- `DELETE /api/v1/files/:id` - Delete file
+
+### Response Format
+
+#### Success Response
+```json
+{
+  "success": true,
+  "data": { /* response data */ },
+  "message": "Operation completed successfully",
+  "timestamp": "2024-01-01T12:00:00.000Z"
+}
+```
+
+#### Error Response
+```json
+{
+  "error": "Error type",
+  "message": "Human readable error message",
+  "code": "ERROR_CODE",
+  "timestamp": "2024-01-01T12:00:00.000Z",
+  "details": { /* additional error info */ }
+}
+```
+
+## 📁 Project Structure
+
+```
+devai-agent-backend/
+├── 📁 src/                          # Source code
+│   ├── 📁 config/                   # Configuration files
+│   │   ├── database.js              # Database connection
+│   │   ├── redis.js                 # Redis connection
+│   │   ├── jwt.js                   # JWT configuration
+│   │   ├── upload.js                # File upload config
+│   │   ├── logger.js                # Logging configuration
+│   │   └── swagger.js               # API documentation
+│   ├── 📁 middleware/               # Express middlewares
+│   │   ├── auth.js                  # Authentication middleware
+│   │   ├── validation.js            # Request validation
+│   │   ├── rateLimit.js            # Rate limiting
+│   │   ├── error.js                 # Error handling
+│   │   ├── upload.js                # File upload handling
+│   │   └── logger.js                # Request logging
+│   ├── 📁 routes/                   # API routes
+│   │   ├── index.js                 # Main router
+│   │   ├── auth.js                  # Auth routes
+│   │   ├── users.js                 # User routes
+│   │   ├── conversations.js         # Chat routes
+│   │   ├── messages.js              # Message routes
+│   │   ├── projects.js              # Project routes
+│   │   ├── files.js                 # File routes
+│   │   ├── ai.js                    # AI integration routes
+│   │   └── analytics.js             # Analytics routes
+│   ├── 📁 controllers/              # Route controllers
+│   │   ├── authController.js        # Authentication logic
+│   │   ├── userController.js        # User management
+│   │   ├── conversationController.js# Chat management
+│   │   ├── messageController.js     # Message handling
+│   │   ├── projectController.js     # Project management
+│   │   ├── fileController.js        # File management
+│   │   ├── aiController.js          # AI integration
+│   │   └── analyticsController.js   # Analytics
+│   ├── 📁 services/                 # Business logic
+│   │   ├── authService.js           # Auth business logic
+│   │   ├── userService.js           # User business logic
+│   │   ├── conversationService.js   # Chat business logic
+│   │   ├── messageService.js        # Message business logic
+│   │   ├── projectService.js        # Project business logic
+│   │   ├── fileService.js           # File business logic
+│   │   ├── aiService.js             # AI business logic
+│   │   ├── cacheService.js          # Caching logic
+│   │   ├── emailService.js          # Email service
+│   │   └── analyticsService.js      # Analytics logic
+│   ├── 📁 ai/                       # AI integrations
+│   │   ├── geminiClient.js          # Google Gemini
+│   │   ├── groqClient.js            # Groq integration
+│   │   ├── huggingfaceClient.js     # HuggingFace
+│   │   ├── ollamaClient.js          # Ollama local models
+│   │   └── aiRouter.js              # AI provider router
+│   ├── 📁 models/                   # Data models (if needed)
+│   ├── 📁 utils/                    # Utility functions
+│   │   ├── constants.js             # App constants
+│   │   ├── helpers.js               # Helper functions
+│   │   ├── validators.js            # Custom validators
+│   │   ├── encryption.js            # Encryption utilities
+│   │   ├── fileUtils.js             # File utilities
+│   │   ├── dateUtils.js             # Date utilities
+│   │   └── responseUtils.js         # Response formatters
+│   ├── 📁 database/                 # Database related
+│   │   ├── schema.prisma            # Prisma schema
+│   │   ├── seed.js                  # Database seeding
+│   │   └── migrations/              # DB migrations
+│   ├── app.js                       # Express app setup
+│   └── server.js                    # Server entry point
+├── 📁 tests/                        # Test files
+│   ├── unit/                        # Unit tests
+│   ├── integration/                 # Integration tests
+│   └── fixtures/                    # Test data
+├── 📁 docs/                         # Documentation
+│   └── swagger/                     # API documentation
+├── 📁 storage/                      # File storage
+│   ├── uploads/                     # Uploaded files
+│   ├── temp/                        # Temporary files
+│   ├── logs/                        # Log files
+│   └── backups/                     # Database backups
+├── 📁 scripts/                      # Utility scripts
+├── 📁 docker/                       # Docker configurations
+├── package.json                     # Dependencies & scripts
+├── .env.example                     # Environment template
+├── .gitignore                       # Git ignore rules
+├── nodemon.json                     # Nodemon configuration
+├── docker-compose.yml               # Docker services
+├── Dockerfile                       # Docker build file
+├── ecosystem.config.js              # PM2 configuration
+├── eslint.config.js                 # ESLint configuration
+├── vitest.config.js                 # Test configuration
+└── README.md                        # This file
+```
+
+## 🛠 Development
+
+### Code Style
+- **ESLint** for code linting
+- **Prettier** for code formatting
+- **Conventional Commits** for commit messages
+
+### Git Workflow
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'feat: add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+### Testing
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Debugging
+The application includes comprehensive logging:
+- **Console output** in development
+- **File logging** in production
+- **Request/response logging**
+- **Error tracking**
+
+### Database Operations
+```bash
+# Reset database
+npm run db:reset
+
+# Generate new migration
+npx prisma migrate dev --name migration-name
+
+# View database
+npm run db:studio
+```
+
+## 🚀 Deployment
+
+### Using Docker
+
+1. **Build and deploy**
+```bash
+docker-compose up -d --build
+```
+
+2. **Environment-specific configs**
+```bash
+# Production
+docker-compose -f docker-compose.prod.yml up -d
+
+# Staging
+docker-compose -f docker-compose.staging.yml up -d
+```
+
+### Using PM2
+
+1. **Install PM2**
+```bash
 npm install -g pm2
-npm run pm2:start
-
-# 4. Configurar nginx (opcional)
-# Ver docs/nginx.conf
 ```
 
-## 🤝 Contribuir
-
-1. **Fork** el proyecto
-2. **Crea** una rama (`git checkout -b feature/nueva-caracteristica`)
-3. **Commit** tus cambios (`git commit -m 'Add: nueva característica'`)
-4. **Push** a la rama (`git push origin feature/nueva-caracteristica`)
-5. **Abre** un Pull Request
-
-## 📝 Convenciones
-
-### 🏷️ Commits
+2. **Start application**
 ```bash
-feat: nueva característica
-fix: corrección de bug
-docs: documentación
-style: formato/estilo
-refactor: refactorización
-test: tests
-chore: mantenimiento
+pm2 start ecosystem.config.js
 ```
 
-### 📁 Archivos
-- **camelCase** para variables y funciones
-- **PascalCase** para clases y componentes
-- **kebab-case** para archivos y URLs
-- **UPPER_CASE** para constantes
-
-## 🔒 Seguridad
-
-- ✅ Autenticación JWT robusta
-- ✅ Rate limiting inteligente
-- ✅ Validación de entrada estricta
-- ✅ Headers de seguridad (Helmet)
-- ✅ CORS configurado
-- ✅ Logging de auditoría
-- ✅ Sanitización de datos
-
-## 📊 Monitoreo
-
-### 🔍 Logs
+3. **Monitor**
 ```bash
-# Ver logs en tiempo real
-tail -f storage/logs/combined.log
-
-# Logs por nivel
-grep "ERROR" storage/logs/error.log
-grep "WARN" storage/logs/combined.log
+pm2 monit
+pm2 logs
 ```
 
-### 📈 Métricas
-- Health checks automáticos
-- Métricas de rendimiento
-- Uso de memoria y CPU
-- Estadísticas de API
+### Environment Preparation
 
-## 🆘 Solución de Problemas
+#### Production Checklist
+- [ ] Set `NODE_ENV=production`
+- [ ] Configure secure JWT secrets
+- [ ] Set up production database
+- [ ] Configure Redis for caching
+- [ ] Set up SSL/TLS certificates
+- [ ] Configure reverse proxy (nginx)
+- [ ] Set up monitoring and logging
+- [ ] Configure backup strategies
+- [ ] Set up CI/CD pipeline
 
-### ❌ Errores Comunes
+## 📊 Monitoring & Health
 
-**Error: "Cannot connect to database"**
-```bash
-# Verificar que PostgreSQL esté ejecutándose
-docker-compose up -d postgres
+### Health Endpoints
+- `GET /health` - Basic health check
+- `GET /status` - Detailed system status
 
-# Verificar configuración en .env
-echo $DATABASE_URL
-```
+### Logging
+Logs are written to:
+- **Console** (development)
+- **Files** in `storage/logs/` (production)
+- **External services** (configurable)
 
-**Error: "JWT Secret not found"**
-```bash
-# Asegurar que JWT_SECRET está en .env
-echo $JWT_SECRET
+### Metrics
+The application tracks:
+- Request/response times
+- Error rates
+- AI API usage
+- Database performance
+- Memory and CPU usage
 
-# Generar nuevo secret
-openssl rand -base64 32
-```
+## 🤝 Contributing
 
-**Error: "Port 3001 already in use"**
-```bash
-# Cambiar puerto en .env
-PORT=3002
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
-# O matar proceso existente
-lsof -ti:3001 | xargs kill
-```
+### Development Setup
+1. Fork and clone the repository
+2. Install dependencies: `npm install`
+3. Set up your development environment
+4. Create a feature branch
+5. Make your changes
+6. Add tests for new features
+7. Ensure all tests pass
+8. Submit a pull request
 
-## 📚 Recursos Adicionales
+### Code Standards
+- Follow existing code style
+- Write comprehensive tests
+- Update documentation
+- Use meaningful commit messages
 
-- 📖 [Documentación Prisma](https://prisma.io/docs)
-- 📖 [Express.js Guide](https://expressjs.com/guide)
-- 📖 [JWT Best Practices](https://auth0.com/blog/a-look-at-the-latest-draft-for-jwt-bcp)
-- 📖 [Node.js Security](https://nodejs.org/en/security/)
+## 📄 License
 
-## 📄 Licencia
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Este proyecto está bajo la licencia **MIT**. Ver el archivo `LICENSE` para más detalles.
+## 🙏 Acknowledgments
+
+- **Express.js** community for the excellent framework
+- **Prisma** team for the amazing ORM
+- **AI providers** (Google, Groq, HuggingFace) for their APIs
+- All contributors who help improve this project
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/your-username/devai-agent-backend/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-username/devai-agent-backend/discussions)
+- **Email**: support@devai-agent.com
 
 ---
 
-## 👥 Equipo
+**Made with ❤️ by the DevAI Team**
 
-**Desarrollado con ❤️ por el equipo de DevAI Agent**
-
-¿Preguntas? ¿Sugerencias? ¡Abre un issue o contacta al equipo!
-
----
-
-## 🎯 Roadmap
-
-### ✅ **Fase 1 - Completada**
-- [x] Infraestructura básica
-- [x] Autenticación JWT
-- [x] Base de datos con Prisma
-- [x] Sistema de archivos
-- [x] Documentación API
-
-### 🚧 **Fase 2 - En Desarrollo**
-- [ ] Integración completa de IA
-- [ ] Sistema de conversaciones
-- [ ] Dashboard de analíticas
-- [ ] Notificaciones en tiempo real
-- [ ] API de webhooks
-
-### 🔮 **Fase 3 - Futuro**
-- [ ] Integración con más proveedores de IA
-- [ ] Sistema de plugins
-- [ ] Análisis de sentimientos
-- [ ] Auto-scaling dinámico
-- [ ] Marketplace de prompts
-
----
-
-**¡Gracias por usar DevAI Agent Backend! 🚀**
+*Happy coding! 🚀*
