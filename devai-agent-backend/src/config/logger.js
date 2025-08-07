@@ -24,4 +24,37 @@ const logger = winston.createLogger({
   ]
 });
 
+// Middleware de logging
+const loggingMiddleware = () => {
+  return (req, res, next) => {
+    const startTime = Date.now();
+    const { method, url, ip } = req;
+    
+    // Log de entrada del request
+    logger.info(`📥 ${method} ${url}`, {
+      ip: ip || req.connection?.remoteAddress || 'unknown',
+      userAgent: req.get('User-Agent') || 'unknown',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Capturar el final de la respuesta
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      const { statusCode } = res;
+      
+      // Log de salida con diferentes niveles según status
+      if (statusCode >= 500) {
+        logger.error(`📤 ${method} ${url} - ${statusCode} (${duration}ms)`);
+      } else if (statusCode >= 400) {
+        logger.warn(`📤 ${method} ${url} - ${statusCode} (${duration}ms)`);
+      } else {
+        logger.info(`📤 ${method} ${url} - ${statusCode} (${duration}ms)`);
+      }
+    });
+    
+    next();
+  };
+};
+
 module.exports = logger;
+module.exports.loggingMiddleware = loggingMiddleware;

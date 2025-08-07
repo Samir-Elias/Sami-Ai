@@ -1,9 +1,5 @@
-// ============================================
-// 🚦 RATE LIMITING MIDDLEWARE
-// ============================================
-
+// src/middleware/rateLimit.js - Versión corregida
 const rateLimit = require('express-rate-limit');
-const { cache } = require('../config/redis');
 const logger = require('../config/logger');
 
 /**
@@ -44,17 +40,77 @@ const rateLimitConfig = {
   standardHeaders: true,
   legacyHeaders: false,
   
-  // Store personalizado con Redis
-  store: createRedisStore()
+  // Usar store en memoria por defecto (sin Redis por ahora)
+  // store: createRedisStore() // ❌ Desactivar Redis store temporalmente
 };
 
 /**
- * 🔴 Crear store de Redis para rate limiting
+ * 🔴 Store en memoria como fallback
+ */
+function createMemoryStore() {
+  const hits = new Map();
+  
+  return {
+    incr: (key) => {
+      const now = Date.now();
+      const windowStart = Math.floor(now / rateLimitConfig.windowMs) * rateLimitConfig.windowMs;
+      const windowKey = `${key}:${windowStart}`;
+      
+      let hitData = hits.get(windowKey);
+      if (!hitData) {
+        hitData = { count: 0, resetTime: windowStart + rateLimitConfig.windowMs };
+        hits.set(windowKey, hitData);
+      }
+      
+      hitData.count++;
+      
+      // Limpiar keys antiguas
+      for (const [k, v] of hits.entries()) {
+        if (v.resetTime < now) {
+          hits.delete(k);
+        }
+      }
+      
+      return Promise.resolve({
+        totalHits: hitData.count,
+        resetTime: hitData.resetTime
+      });
+    },
+    
+    decrement: (key) => {
+      // Implementación básica
+      return Promise.resolve();
+    },
+    
+    resetKey: (key) => {
+      const keysToDelete = [];
+      for (const k of hits.keys()) {
+        if (k.startsWith(key)) {
+          keysToDelete.push(k);
+        }
+      }
+      keysToDelete.forEach(k => hits.delete(k));
+      return Promise.resolve();
+    }
+  };
+}
+
+/**
+ * 🔴 Crear store de Redis (con manejo de errores mejorado)
  */
 function createRedisStore() {
   return {
     async incr(key) {
       try {
+        // Importar cache de forma segura
+        const { cache } = require('../config/redis');
+        
+        // Verificar que cache y sus métodos existan
+        if (!cache || typeof cache.incr !== 'function') {
+          logger.warn('Redis cache not available, falling back to memory store');
+          throw new Error('Redis cache not properly initialized');
+        }
+        
         const current = await cache.incr(key);
         
         // Si es la primera vez, establecer TTL
@@ -67,7 +123,10 @@ function createRedisStore() {
           resetTime: Date.now() + rateLimitConfig.windowMs
         };
       } catch (error) {
-        logger.error('Error in Redis rate limit store', { error: error.message });
+        logger.error('Error in Redis rate limit store:', { 
+          error: error.message,
+          key: key
+        });
         // Fallback: permitir la request si hay error con Redis
         return { totalHits: 1, resetTime: Date.now() + rateLimitConfig.windowMs };
       }
@@ -75,17 +134,29 @@ function createRedisStore() {
     
     async decrement(key) {
       try {
-        await cache.incr(key, -1);
+        const { cache } = require('../config/redis');
+        if (cache && typeof cache.incr === 'function') {
+          await cache.incr(key, -1);
+        }
       } catch (error) {
-        logger.error('Error decrementing rate limit counter', { error: error.message });
+        logger.error('Error decrementing rate limit counter:', { 
+          error: error.message,
+          key: key 
+        });
       }
     },
     
     async resetKey(key) {
       try {
-        await cache.del(key);
+        const { cache } = require('../config/redis');
+        if (cache && typeof cache.del === 'function') {
+          await cache.del(key);
+        }
       } catch (error) {
-        logger.error('Error resetting rate limit key', { error: error.message });
+        logger.error('Error resetting rate limit key:', { 
+          error: error.message,
+          key: key 
+        });
       }
     }
   };
@@ -95,7 +166,7 @@ function createRedisStore() {
  * 🚦 Rate limiters específicos
  */
 
-// Rate limiter general para toda la API
+// Rate limiter general para toda la API (usando memoria por defecto)
 const generalRateLimit = rateLimit({
   ...rateLimitConfig,
   max: 100, // 100 requests por 15 minutos
@@ -103,7 +174,9 @@ const generalRateLimit = rateLimit({
     success: false,
     message: 'Demasiadas solicitudes generales',
     code: 'GENERAL_RATE_LIMIT'
-  }
+  },
+  // Usar store en memoria por seguridad
+  store: process.env.REDIS_ENABLED === 'true' ? createRedisStore() : createMemoryStore()
 });
 
 // Rate limiter estricto para autenticación
@@ -117,6 +190,7 @@ const authRateLimit = rateLimit({
     message: 'Demasiados intentos de autenticación. Intenta en 15 minutos.',
     code: 'AUTH_RATE_LIMIT'
   },
+  store: createMemoryStore(), // Siempre usar memoria para auth por seguridad
   handler: (req, res) => {
     logger.warn('Auth rate limit exceeded', {
       ip: req.ip,
@@ -138,6 +212,7 @@ const uploadRateLimit = rateLimit({
   ...rateLimitConfig,
   windowMs: 60 * 60 * 1000, // 1 hora
   max: 10, // 10 uploads por hora
+  store: createMemoryStore(),
   message: {
     success: false,
     message: 'Límite de uploads alcanzado. Intenta en una hora.',
@@ -150,6 +225,7 @@ const aiRateLimit = rateLimit({
   ...rateLimitConfig,
   windowMs: 60 * 1000, // 1 minuto
   max: 20, // 20 requests de IA por minuto
+  store: createMemoryStore(),
   message: {
     success: false,
     message: 'Límite de requests de IA alcanzado. Intenta en un minuto.',
@@ -157,296 +233,10 @@ const aiRateLimit = rateLimit({
   }
 });
 
-// Rate limiter para creación de recursos
-const createRateLimit = rateLimit({
-  ...rateLimitConfig,
-  windowMs: 60 * 1000, // 1 minuto
-  max: 30, // 30 creaciones por minuto
-  message: {
-    success: false,
-    message: 'Límite de creación de recursos alcanzado.',
-    code: 'CREATE_RATE_LIMIT'
-  }
-});
-
-// Rate limiter muy permisivo para lectura
-const readRateLimit = rateLimit({
-  ...rateLimitConfig,
-  max: 200, // 200 requests de lectura por 15 minutos
-  message: {
-    success: false,
-    message: 'Límite de lectura alcanzado.',
-    code: 'READ_RATE_LIMIT'
-  }
-});
-
-/**
- * 🎯 Rate limiters adaptativos basados en usuario
- */
-
-// Rate limiter premium para usuarios autenticados
-const authenticatedRateLimit = rateLimit({
-  ...rateLimitConfig,
-  max: (req) => {
-    // Usuarios autenticados obtienen más requests
-    if (req.user) {
-      return 200; // 200 requests para usuarios autenticados
-    }
-    return 50; // 50 requests para usuarios anónimos
-  },
-  keyGenerator: (req) => {
-    return req.user?.id || `anon:${req.ip}`;
-  },
-  message: (req) => ({
-    success: false,
-    message: req.user 
-      ? 'Límite para usuario autenticado alcanzado' 
-      : 'Límite para usuario anónimo alcanzado. Inicia sesión para más requests.',
-    code: req.user ? 'AUTH_USER_RATE_LIMIT' : 'ANON_USER_RATE_LIMIT'
-  })
-});
-
-/**
- * 🔧 Middleware personalizado para rate limiting avanzado
- */
-const createCustomRateLimit = (options = {}) => {
-  const {
-    windowMs = 15 * 60 * 1000,
-    max = 100,
-    keyGenerator = (req) => req.user?.id || req.ip,
-    message = 'Rate limit exceeded',
-    skipIf = () => false,
-    onLimitReached = () => {},
-    points = 1 // Puntos a consumir por request
-  } = options;
-
-  return async (req, res, next) => {
-    try {
-      // Verificar si debe saltarse el rate limiting
-      if (skipIf(req)) {
-        return next();
-      }
-
-      const key = `rate_limit:${keyGenerator(req)}`;
-      const window = Math.floor(Date.now() / windowMs);
-      const windowKey = `${key}:${window}`;
-
-      // Obtener conteo actual
-      const current = await cache.get(windowKey) || 0;
-
-      // Verificar si excede el límite
-      if (current >= max) {
-        // Callback cuando se alcanza el límite
-        onLimitReached(req, res);
-
-        logger.warn('Custom rate limit exceeded', {
-          key: key,
-          current: current,
-          max: max,
-          ip: req.ip,
-          userId: req.user?.id
-        });
-
-        return res.status(429).json({
-          success: false,
-          message: typeof message === 'function' ? message(req) : message,
-          current: current,
-          max: max,
-          resetTime: (window + 1) * windowMs,
-          code: 'CUSTOM_RATE_LIMIT'
-        });
-      }
-
-      // Incrementar contador
-      const newCount = await cache.incr(windowKey, points);
-      
-      // Establecer TTL si es la primera vez
-      if (newCount === points) {
-        await cache.expire(windowKey, Math.ceil(windowMs / 1000));
-      }
-
-      // Agregar headers informativos
-      res.set({
-        'X-RateLimit-Limit': max,
-        'X-RateLimit-Remaining': Math.max(0, max - newCount),
-        'X-RateLimit-Reset': new Date((window + 1) * windowMs).toISOString()
-      });
-
-      next();
-    } catch (error) {
-      logger.error('Error in custom rate limit middleware', {
-        error: error.message,
-        ip: req.ip,
-        userId: req.user?.id
-      });
-      
-      // En caso de error, permitir la request
-      next();
-    }
-  };
-};
-
-/**
- * 🛡️ Rate limiter basado en puntos para diferentes acciones
- */
-const pointsRateLimit = createCustomRateLimit({
-  windowMs: 60 * 1000, // 1 minuto
-  max: 100, // 100 puntos por minuto
-  keyGenerator: (req) => req.user?.id || req.ip,
-  message: 'Límite de puntos de actividad alcanzado',
-  points: (req) => {
-    // Diferentes acciones consumen diferentes puntos
-    const method = req.method.toLowerCase();
-    const path = req.path.toLowerCase();
-    
-    if (path.includes('/ai/')) return 10; // AI requests cuestan 10 puntos
-    if (path.includes('/upload')) return 20; // Uploads cuestan 20 puntos
-    if (method === 'post') return 5; // POST requests cuestan 5 puntos
-    if (method === 'put' || method === 'patch') return 3; // Updates cuestan 3 puntos
-    if (method === 'delete') return 2; // DELETE cuesta 2 puntos
-    return 1; // GET requests cuestan 1 punto
-  }
-});
-
-/**
- * 🔄 Rate limiter con burst allowance
- */
-const burstRateLimit = createCustomRateLimit({
-  windowMs: 60 * 1000, // 1 minuto
-  max: 60, // 60 requests por minuto normalmente
-  keyGenerator: (req) => req.user?.id || req.ip,
-  skipIf: async (req) => {
-    // Permitir burst de hasta 20 requests adicionales si el usuario
-    // ha estado inactivo por más de 5 minutos
-    const key = `last_activity:${req.user?.id || req.ip}`;
-    const lastActivity = await cache.get(key);
-    const now = Date.now();
-    
-    if (!lastActivity || (now - lastActivity) > 5 * 60 * 1000) {
-      // Actualizar última actividad
-      await cache.set(key, now, 600); // 10 minutos TTL
-      return false; // No saltarse, pero permitir burst
-    }
-    
-    return false;
-  }
-});
-
-/**
- * 📊 Middleware para métricas de rate limiting
- */
-const rateLimitMetrics = () => {
-  return (req, res, next) => {
-    const originalJson = res.json;
-    
-    res.json = function(data) {
-      // Si es un error de rate limit, registrar métrica
-      if (res.statusCode === 429) {
-        logger.info('Rate limit hit', {
-          endpoint: req.originalUrl,
-          method: req.method,
-          userId: req.user?.id || 'anonymous',
-          ip: req.ip
-        });
-      }
-      
-      return originalJson.call(this, data);
-    };
-    
-    next();
-  };
-};
-
-/**
- * 🧹 Función de limpieza para keys de rate limiting
- */
-const cleanupRateLimitKeys = async () => {
-  try {
-    const keys = await cache.keys('rate_limit:*');
-    let cleanedCount = 0;
-    
-    for (const key of keys) {
-      const ttl = await cache.client.ttl(key);
-      
-      // Si la key no tiene TTL o ya expiró, eliminarla
-      if (ttl <= 0) {
-        await cache.del(key);
-        cleanedCount++;
-      }
-    }
-    
-    logger.info('Rate limit keys cleanup completed', {
-      totalKeys: keys.length,
-      cleanedKeys: cleanedCount
-    });
-    
-    return cleanedCount;
-  } catch (error) {
-    logger.error('Error cleaning up rate limit keys', {
-      error: error.message
-    });
-    return 0;
-  }
-};
-
-/**
- * 🔍 Obtener estadísticas de rate limiting
- */
-const getRateLimitStats = async (userId = null, ip = null) => {
-  try {
-    const keys = [];
-    
-    if (userId) {
-      keys.push(`rate_limit:${userId}:*`);
-    }
-    if (ip) {
-      keys.push(`rate_limit:${ip}:*`);
-    }
-    
-    const stats = {};
-    
-    for (const pattern of keys) {
-      const matchingKeys = await cache.keys(pattern);
-      
-      for (const key of matchingKeys) {
-        const value = await cache.get(key);
-        const ttl = await cache.client.ttl(key);
-        
-        stats[key] = {
-          current: value,
-          ttl: ttl,
-          expiresAt: new Date(Date.now() + (ttl * 1000))
-        };
-      }
-    }
-    
-    return stats;
-  } catch (error) {
-    logger.error('Error getting rate limit stats', {
-      error: error.message,
-      userId: userId,
-      ip: ip
-    });
-    return {};
-  }
-};
-
 /**
  * 🧪 Funciones para testing
  */
 const testHelpers = {
-  // Resetear rate limits para testing
-  resetRateLimit: async (key) => {
-    try {
-      const keys = await cache.keys(`rate_limit:${key}:*`);
-      for (const k of keys) {
-        await cache.del(k);
-      }
-    } catch (error) {
-      console.error('Error resetting rate limit:', error);
-    }
-  },
-  
   // Rate limiter mock que siempre permite
   allowAllRateLimit: (req, res, next) => next(),
   
@@ -468,14 +258,5 @@ module.exports = {
   authRateLimit,
   uploadRateLimit,
   aiRateLimit,
-  createRateLimit,
-  readRateLimit,
-  authenticatedRateLimit,
-  pointsRateLimit,
-  burstRateLimit,
-  createCustomRateLimit,
-  rateLimitMetrics,
-  cleanupRateLimitKeys,
-  getRateLimitStats,
   testHelpers
 };
