@@ -1,5 +1,5 @@
 // ============================================
-// 📋 SIDEBAR COMPONENT - CON API CONTEXT
+// 📋 SIDEBAR COMPONENT - CON CONTEXTO UNIFICADO CORREGIDO
 // ============================================
 
 import React, { useState } from 'react';
@@ -20,16 +20,18 @@ import {
   RefreshCw,
   AlertCircle
 } from 'lucide-react';
-import { useApp, useBackendStatus, useAPI } from '../../context/Appcontext';
+
+// ✅ IMPORT CORRECTO - Contexto unificado
+import { useApp, useBackendStatus, useAPI } from '../../context/AppContext';
 
 /**
- * Componente Sidebar para navegación y conversaciones con API Context
+ * Componente Sidebar para navegación y conversaciones
  * @param {Object} props - Props del componente
  */
 const Sidebar = ({
   isVisible,
   isMobile,
-  conversations,
+  conversations = [], // ✅ Valor por defecto
   currentConversationId,
   onClose,
   onNewConversation,
@@ -42,47 +44,74 @@ const Sidebar = ({
   const [showSearch, setShowSearch] = useState(false);
   const [filterBy, setFilterBy] = useState('all'); // 'all', 'today', 'week', 'month'
 
-  // Context integration
+  // ✅ Context integration con valores por defecto
+  const appContext = useApp();
   const { 
-    isBackendConnected, 
-    connectionStatus, 
-    currentProject,
-    setCurrentProject 
-  } = useApp();
+    currentProject = 'AI Dev Agent'
+  } = appContext || {};
   
-  const { isConnected, reconnect } = useBackendStatus();
-  const { api, isLoading, error } = useAPI();
+  const backendStatus = useBackendStatus();
+  const { isConnected: isBackendConnected = false, reconnect } = backendStatus || {};
+  
+  const apiContext = useAPI();
+  const { api, isLoading = false, error } = apiContext || {};
 
-  // Filtrar conversaciones
-  const filteredConversations = conversations.filter(conv => {
-    // Filtro por búsqueda
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      const matchesSearch = conv.title.toLowerCase().includes(term) ||
-                           conv.preview.toLowerCase().includes(term);
-      if (!matchesSearch) return false;
-    }
-
-    // Filtro por fecha
-    if (filterBy !== 'all') {
-      const now = new Date();
-      const convDate = new Date(conv.updatedAt);
-      const daysDiff = Math.floor((now - convDate) / (1000 * 60 * 60 * 24));
-
-      switch (filterBy) {
-        case 'today':
-          return daysDiff === 0;
-        case 'week':
-          return daysDiff <= 7;
-        case 'month':
-          return daysDiff <= 30;
-        default:
-          return true;
+  // ✅ Filtrar conversaciones de forma segura
+  const filteredConversations = React.useMemo(() => {
+    if (!Array.isArray(conversations)) return [];
+    
+    return conversations.filter(conv => {
+      // Filtro por búsqueda
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const matchesSearch = (conv.title || '').toLowerCase().includes(term) ||
+                             (conv.preview || '').toLowerCase().includes(term);
+        if (!matchesSearch) return false;
       }
-    }
 
-    return true;
-  });
+      // Filtro por fecha
+      if (filterBy !== 'all') {
+        const now = new Date();
+        const convDate = new Date(conv.updatedAt || conv.createdAt || now);
+        const daysDiff = Math.floor((now - convDate) / (1000 * 60 * 60 * 24));
+
+        switch (filterBy) {
+          case 'today':
+            return daysDiff === 0;
+          case 'week':
+            return daysDiff <= 7;
+          case 'month':
+            return daysDiff <= 30;
+          default:
+            return true;
+        }
+      }
+
+      return true;
+    });
+  }, [conversations, searchTerm, filterBy]);
+
+  // ✅ Handlers con validación
+  const handleNewConversation = () => {
+    if (onNewConversation) {
+      onNewConversation();
+    }
+  };
+
+  const handleLoadConversation = (conv) => {
+    if (onLoadConversation) {
+      onLoadConversation(conv);
+    }
+  };
+
+  const handleDeleteConversation = (id, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (onDeleteConversation && window.confirm('¿Eliminar esta conversación?')) {
+      onDeleteConversation(id);
+    }
+  };
 
   if (!isVisible) return null;
 
@@ -129,14 +158,12 @@ const Sidebar = ({
           onSearchToggle={() => setShowSearch(!showSearch)}
           onSearchChange={setSearchTerm}
           isBackendConnected={isBackendConnected}
-          connectionStatus={connectionStatus}
           onReconnect={reconnect}
         />
 
         {/* Backend Status */}
         <BackendStatus 
           isBackendConnected={isBackendConnected}
-          connectionStatus={connectionStatus}
           error={error}
           isLoading={isLoading}
           onReconnect={reconnect}
@@ -145,14 +172,13 @@ const Sidebar = ({
         {/* Project Info */}
         <ProjectInfo 
           currentProject={currentProject}
-          setCurrentProject={setCurrentProject}
         />
 
         {/* Controls */}
         <SidebarControls
           filterBy={filterBy}
           onFilterChange={setFilterBy}
-          onNewConversation={onNewConversation}
+          onNewConversation={handleNewConversation}
           onExport={onExportConversations}
           onImport={onImportConversations}
           isBackendConnected={isBackendConnected}
@@ -163,8 +189,8 @@ const Sidebar = ({
           conversations={filteredConversations}
           currentConversationId={currentConversationId}
           searchTerm={searchTerm}
-          onLoadConversation={onLoadConversation}
-          onDeleteConversation={onDeleteConversation}
+          onLoadConversation={handleLoadConversation}
+          onDeleteConversation={handleDeleteConversation}
           isBackendConnected={isBackendConnected}
         />
 
@@ -179,7 +205,7 @@ const Sidebar = ({
 };
 
 /**
- * Header del sidebar con estado de backend
+ * Header del sidebar
  */
 const SidebarHeader = ({ 
   isMobile, 
@@ -189,7 +215,6 @@ const SidebarHeader = ({
   onSearchToggle, 
   onSearchChange,
   isBackendConnected,
-  connectionStatus,
   onReconnect
 }) => (
   <div style={{
@@ -222,7 +247,7 @@ const SidebarHeader = ({
       </h2>
       
       <div style={{ display: 'flex', gap: '4px' }}>
-        {!isBackendConnected && (
+        {!isBackendConnected && onReconnect && (
           <button
             onClick={onReconnect}
             style={{
@@ -307,7 +332,6 @@ const SidebarHeader = ({
  */
 const BackendStatus = ({ 
   isBackendConnected, 
-  connectionStatus, 
   error, 
   isLoading, 
   onReconnect 
@@ -347,7 +371,7 @@ const BackendStatus = ({
         )}
       </div>
 
-      {!isBackendConnected && (
+      {!isBackendConnected && onReconnect && (
         <button
           onClick={onReconnect}
           disabled={isLoading}
@@ -386,7 +410,7 @@ const BackendStatus = ({
 /**
  * Información del proyecto actual
  */
-const ProjectInfo = ({ currentProject, setCurrentProject }) => (
+const ProjectInfo = ({ currentProject }) => (
   <div style={{ 
     padding: '12px 16px',
     borderBottom: '1px solid rgba(55, 65, 81, 0.3)'
@@ -403,24 +427,17 @@ const ProjectInfo = ({ currentProject, setCurrentProject }) => (
       </span>
     </div>
     
-    <input
-      type="text"
-      value={currentProject}
-      onChange={(e) => setCurrentProject(e.target.value)}
-      placeholder="Nombre del proyecto"
-      style={{
-        width: '100%',
-        padding: '6px 8px',
-        backgroundColor: 'rgba(55, 65, 81, 0.3)',
-        border: '1px solid #4b5563',
-        borderRadius: '4px',
-        color: '#f3f4f6',
-        fontSize: '12px',
-        outline: 'none'
-      }}
-      onFocus={(e) => e.target.style.borderColor = '#2563eb'}
-      onBlur={(e) => e.target.style.borderColor = '#4b5563'}
-    />
+    <div style={{
+      padding: '8px 12px',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      borderRadius: '6px',
+      border: '1px solid rgba(59, 130, 246, 0.2)',
+      fontSize: '14px',
+      color: '#93c5fd',
+      fontWeight: '500'
+    }}>
+      {currentProject}
+    </div>
   </div>
 );
 
@@ -554,7 +571,7 @@ const OptionsDropdown = ({ onExport, onImport, isBackendConnected }) => {
           }}>
             <button
               onClick={() => {
-                onExport();
+                if (onExport) onExport();
                 setIsOpen(false);
               }}
               style={{
@@ -579,7 +596,7 @@ const OptionsDropdown = ({ onExport, onImport, isBackendConnected }) => {
             
             <button
               onClick={() => {
-                onImport();
+                if (onImport) onImport();
                 setIsOpen(false);
               }}
               disabled={!isBackendConnected}
@@ -681,7 +698,7 @@ const ConversationItem = ({ conversation, isActive, onLoad, onDelete, isBackendC
           textOverflow: 'ellipsis',
           color: isActive ? 'white' : '#f3f4f6'
         }}>
-          {conversation.title}
+          {conversation.title || 'Conversación sin título'}
         </h3>
         
         <p style={{ 
@@ -692,7 +709,7 @@ const ConversationItem = ({ conversation, isActive, onLoad, onDelete, isBackendC
           overflow: 'hidden',
           textOverflow: 'ellipsis'
         }}>
-          {conversation.preview}
+          {conversation.preview || 'Sin preview'}
         </p>
         
         <div style={{ 
@@ -703,9 +720,14 @@ const ConversationItem = ({ conversation, isActive, onLoad, onDelete, isBackendC
           color: isActive ? '#cbd5e1' : '#6b7280'
         }}>
           <MessageSquare style={{ width: '12px', height: '12px' }} />
-          <span>{conversation.messageCount}</span>
+          <span>{conversation.messageCount || 0}</span>
           <Clock style={{ width: '12px', height: '12px', marginLeft: '4px' }} />
-          <span>{new Date(conversation.updatedAt).toLocaleDateString()}</span>
+          <span>
+            {conversation.updatedAt 
+              ? new Date(conversation.updatedAt).toLocaleDateString() 
+              : 'Fecha desconocida'
+            }
+          </span>
           
           {/* Provider indicator */}
           {conversation.provider && (
@@ -787,8 +809,9 @@ const EmptyState = ({ searchTerm, isBackendConnected }) => (
  * Footer con estadísticas
  */
 const SidebarFooter = ({ conversations, isBackendConnected }) => {
-  const totalMessages = conversations.reduce((acc, conv) => acc + conv.messageCount, 0);
-  const providersUsed = [...new Set(conversations.map(conv => conv.provider).filter(Boolean))];
+  const safeConversations = Array.isArray(conversations) ? conversations : [];
+  const totalMessages = safeConversations.reduce((acc, conv) => acc + (conv.messageCount || 0), 0);
+  const providersUsed = [...new Set(safeConversations.map(conv => conv.provider).filter(Boolean))];
   
   return (
     <div style={{
@@ -799,7 +822,7 @@ const SidebarFooter = ({ conversations, isBackendConnected }) => {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '8px' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: '500', color: '#9ca3af' }}>{conversations.length}</div>
+          <div style={{ fontWeight: '500', color: '#9ca3af' }}>{safeConversations.length}</div>
           <div>Conversaciones</div>
         </div>
         <div style={{ textAlign: 'center' }}>

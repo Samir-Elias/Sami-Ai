@@ -1,12 +1,13 @@
 // ============================================
-// 📱 HEADER COMPONENT (Con API Context Integrado)
+// 📱 HEADER COMPONENT - ACTUALIZADO CON CONTEXTO UNIFICADO
 // ============================================
 
 import React from 'react';
 import { Menu, Settings, Sparkles, Eye, EyeOff, FolderOpen } from 'lucide-react';
 import { API_LIMITS } from '../../utils/constants';
-// 🔥 NUEVAS IMPORTACIONES - Integración con contexto global
-import { useApp, useBackendStatus, useAPI } from '../../context/Appcontext';
+
+// ✅ IMPORT CORRECTO - Nuevo contexto unificado
+import { useApp, useBackendStatus, useAPI } from '../../context/AppContext';
 
 /**
  * Componente Header responsivo con integración de API Context
@@ -22,24 +23,22 @@ const Header = ({
   onSettingsClick,
   onPreviewToggle
 }) => {
-  // 🔥 USAR CONTEXTO GLOBAL - Acceso a estado y API
+  // ✅ HOOKS ACTUALIZADOS - Usando el contexto unificado
   const { 
-    currentProject: globalProject,
-    setCurrentProject,
-    isLoading: globalLoading 
+    currentProject,
+    computed: { connectionInfo, projectInfo }
   } = useApp();
   
   const { 
     isConnected: backendConnected,
-    canUseAPI,
-    text: connectionText 
+    reconnect
   } = useBackendStatus();
   
   const { api } = useAPI();
 
-  // 🔥 FUNCIÓN MEJORADA - Verificar estado de APIs
+  // ✅ FUNCIÓN MEJORADA - Verificar estado de APIs usando el contexto unificado
   const handleCheckAPIStatus = async () => {
-    if (!canUseAPI) return;
+    if (!connectionInfo.canUseAPI) return;
     
     try {
       const aiStatus = await api.getAIStatus();
@@ -50,15 +49,15 @@ const Header = ({
     }
   };
 
-  // 🔥 STATUS MEJORADO - Combina API original + backend status
+  // ✅ STATUS MEJORADO - Usando información del contexto
   const enhancedApiStatus = {
-    // Tu API status original (pasado como prop)
+    // Backend status desde el contexto
     backend: {
       icon: backendConnected ? '🟢' : '🔴',
       status: backendConnected ? 'connected' : 'disconnected',
-      error: !backendConnected ? 'Backend offline' : null
+      error: !backendConnected ? connectionInfo.text : null
     },
-    // Aquí puedes agregar más APIs si las tienes como props
+    // Información de APIs disponibles
     ...(API_LIMITS && Object.keys(API_LIMITS).reduce((acc, provider) => {
       acc[provider] = {
         icon: API_LIMITS[provider]?.icon || '🤖',
@@ -97,12 +96,12 @@ const Header = ({
           onClick={onMenuClick}
         />
         
-        {/* Logo and Title - CON ESTADO DE BACKEND */}
+        {/* Logo and Title - CON ESTADO DE BACKEND DEL CONTEXTO */}
         <LogoSection 
           isMobile={isMobile}
           currentProvider={currentProvider}
           backendConnected={backendConnected}
-          connectionText={connectionText}
+          connectionText={connectionInfo.text}
         />
       </div>
 
@@ -121,25 +120,26 @@ const Header = ({
           />
         )}
 
-        {/* Status Indicators - MEJORADO CON BACKEND STATUS */}
+        {/* Status Indicators - MEJORADO CON BACKEND STATUS DEL CONTEXTO */}
         {!isMobile && (
           <StatusIndicators 
             apiStatus={enhancedApiStatus}
             onStatusClick={handleCheckAPIStatus}
-            canUseAPI={canUseAPI}
-            globalLoading={globalLoading}
+            canUseAPI={connectionInfo.canUseAPI}
+            isLoading={false} // Podrías obtener esto del contexto también
           />
         )}
 
-        {/* Project Indicator - USANDO PROYECTO GLOBAL */}
-        {globalProject && (
+        {/* Project Indicator - USANDO PROYECTO DEL CONTEXTO */}
+        {currentProject && (
           <ProjectIndicator 
-            project={globalProject}
+            project={currentProject}
             isMobile={isMobile}
+            projectInfo={projectInfo}
           />
         )}
 
-        {/* Settings Button - CON INDICADOR DE BACKEND */}
+        {/* Settings Button - CON INDICADOR DE BACKEND DEL CONTEXTO */}
         <SettingsButton 
           isMobile={isMobile}
           hasApiKey={!!apiKey}
@@ -178,7 +178,7 @@ const MenuButton = ({ isMobile, onClick }) => (
 );
 
 /**
- * Sección de logo y título - MEJORADA CON ESTADO BACKEND
+ * Sección de logo y título - MEJORADA CON ESTADO BACKEND DEL CONTEXTO
  */
 const LogoSection = ({ isMobile, currentProvider, backendConnected, connectionText }) => (
   <div style={{ 
@@ -187,7 +187,7 @@ const LogoSection = ({ isMobile, currentProvider, backendConnected, connectionTe
     gap: '8px', 
     minWidth: 0 
   }}>
-    {/* Logo - Con indicador de conexión */}
+    {/* Logo - Con indicador de conexión del contexto */}
     <div style={{
       width: isMobile ? '24px' : '32px',
       height: isMobile ? '24px' : '32px',
@@ -207,7 +207,7 @@ const LogoSection = ({ isMobile, currentProvider, backendConnected, connectionTe
         color: backendConnected ? 'white' : '#9ca3af'
       }} />
       
-      {/* Indicador de conexión */}
+      {/* Indicador de conexión del contexto */}
       <div style={{
         position: 'absolute',
         bottom: '-2px',
@@ -283,9 +283,9 @@ const PreviewToggleButton = ({ showPreview, onClick }) => (
 );
 
 /**
- * Indicadores de estado de las APIs - MEJORADO CON INTERACTIVIDAD
+ * Indicadores de estado de las APIs - MEJORADO CON INTERACTIVIDAD DEL CONTEXTO
  */
-const StatusIndicators = ({ apiStatus, onStatusClick, canUseAPI, globalLoading }) => (
+const StatusIndicators = ({ apiStatus, onStatusClick, canUseAPI, isLoading }) => (
   <div style={{ 
     display: 'flex', 
     alignItems: 'center', 
@@ -325,8 +325,8 @@ const StatusIndicators = ({ apiStatus, onStatusClick, canUseAPI, globalLoading }
             : 'rgba(34, 197, 94, 0.2)';
         }}
       >
-        <span>{globalLoading && provider === 'backend' ? '🔄' : status.icon}</span>
-        {!globalLoading && (
+        <span>{isLoading && provider === 'backend' ? '🔄' : status.icon}</span>
+        {!isLoading && (
           <span style={{ 
             color: status.error ? '#fca5a5' : '#bbf7d0',
             textTransform: 'uppercase',
@@ -341,9 +341,9 @@ const StatusIndicators = ({ apiStatus, onStatusClick, canUseAPI, globalLoading }
 );
 
 /**
- * Indicador de proyecto actual - USANDO PROYECTO GLOBAL
+ * Indicador de proyecto actual - MEJORADO CON INFO DEL CONTEXTO
  */
-const ProjectIndicator = ({ project, isMobile }) => (
+const ProjectIndicator = ({ project, isMobile, projectInfo }) => (
   <div style={{
     display: 'flex',
     alignItems: 'center',
@@ -367,9 +367,8 @@ const ProjectIndicator = ({ project, isMobile }) => (
       overflow: 'hidden',
       textOverflow: 'ellipsis'
     }}>
-      {/* Soporte para project como string o objeto */}
       {isMobile 
-        ? (typeof project === 'object' ? `${project.files?.length || 0}` : '1') 
+        ? `${projectInfo?.messageCount || 0}` 
         : (typeof project === 'object' ? project.name : project)
       }
     </span>
@@ -377,7 +376,7 @@ const ProjectIndicator = ({ project, isMobile }) => (
 );
 
 /**
- * Botón de configuración - CON INDICADOR DE BACKEND
+ * Botón de configuración - CON INDICADOR DE BACKEND DEL CONTEXTO
  */
 const SettingsButton = ({ isMobile, hasApiKey, backendConnected, onClick }) => (
   <button
@@ -402,7 +401,7 @@ const SettingsButton = ({ isMobile, hasApiKey, backendConnected, onClick }) => (
       height: isMobile ? '16px' : '20px' 
     }} />
     
-    {/* Indicador de falta de API key O backend desconectado */}
+    {/* Indicador de falta de API key O backend desconectado (del contexto) */}
     {(!hasApiKey || !backendConnected) && (
       <span style={{
         position: 'absolute',

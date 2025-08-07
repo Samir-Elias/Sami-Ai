@@ -1,27 +1,51 @@
 // ============================================
-// 📱 RESPONSIVE HOOK
+// 📱 RESPONSIVE HOOK - CORREGIDO Y FUNCIONAL
 // ============================================
 
 import { useState, useEffect } from 'react';
-import { BREAKPOINTS } from '../utils/constants';
+
+// ✅ Breakpoints actualizados
+const BREAKPOINTS = {
+  mobile: 768,
+  tablet: 1024,
+  desktop: 1200
+};
 
 /**
- * Hook para detectar y manejar cambios de dispositivo
+ * Hook principal para detectar y manejar cambios de dispositivo
  * @returns {Object} Información sobre el dispositivo actual
  */
 export const useResponsive = () => {
-  const [screenInfo, setScreenInfo] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
-    height: typeof window !== 'undefined' ? window.innerHeight : 800,
-    isMobile: typeof window !== 'undefined' ? window.innerWidth < BREAKPOINTS.mobile : false,
-    isTablet: typeof window !== 'undefined' ? 
-      window.innerWidth >= BREAKPOINTS.mobile && window.innerWidth < BREAKPOINTS.tablet : false,
-    isDesktop: typeof window !== 'undefined' ? window.innerWidth >= BREAKPOINTS.desktop : true,
-    orientation: typeof window !== 'undefined' ? 
-      (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait') : 'landscape'
+  const [screenInfo, setScreenInfo] = useState(() => {
+    // ✅ Inicialización segura
+    if (typeof window === 'undefined') {
+      return {
+        width: 1200,
+        height: 800,
+        isMobile: false,
+        isTablet: false,
+        isDesktop: true,
+        orientation: 'landscape'
+      };
+    }
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    return {
+      width,
+      height,
+      isMobile: width < BREAKPOINTS.mobile,
+      isTablet: width >= BREAKPOINTS.mobile && width < BREAKPOINTS.tablet,
+      isDesktop: width >= BREAKPOINTS.desktop,
+      orientation: width > height ? 'landscape' : 'portrait'
+    };
   });
 
   useEffect(() => {
+    // ✅ Verificar que estamos en el browser
+    if (typeof window === 'undefined') return;
+
     const handleResize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -54,11 +78,14 @@ export const useResponsive = () => {
  * @returns {boolean} True si es dispositivo móvil
  */
 export const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth < BREAKPOINTS.mobile : false
-  );
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < BREAKPOINTS.mobile;
+  });
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const checkMobile = () => setIsMobile(window.innerWidth < BREAKPOINTS.mobile);
     
     window.addEventListener('resize', checkMobile);
@@ -75,12 +102,14 @@ export const useIsMobile = () => {
  * @returns {string} 'portrait' | 'landscape'
  */
 export const useOrientation = () => {
-  const [orientation, setOrientation] = useState(
-    typeof window !== 'undefined' ? 
-    (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait') : 'landscape'
-  );
+  const [orientation, setOrientation] = useState(() => {
+    if (typeof window === 'undefined') return 'landscape';
+    return window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+  });
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const handleOrientationChange = () => {
       const newOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
       setOrientation(newOrientation);
@@ -113,6 +142,8 @@ export const useBreakpoint = () => {
   });
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const handleResize = () => {
       const width = window.innerWidth;
       let newBreakpoint = 'desktop';
@@ -157,241 +188,5 @@ export const useTouchDevice = () => {
   return isTouch;
 };
 
-/**
- * Hook para obtener información completa del viewport
- * @returns {Object} Información detallada del viewport
- */
-export const useViewport = () => {
-  const [viewport, setViewport] = useState(() => {
-    if (typeof window === 'undefined') {
-      return {
-        width: 1200,
-        height: 800,
-        availableHeight: 800,
-        scrollY: 0,
-        devicePixelRatio: 1
-      };
-    }
-
-    return {
-      width: window.innerWidth,
-      height: window.innerHeight,
-      availableHeight: window.innerHeight - (window.outerHeight - window.innerHeight),
-      scrollY: window.scrollY,
-      devicePixelRatio: window.devicePixelRatio || 1
-    };
-  });
-
-  useEffect(() => {
-    const handleResize = () => {
-      setViewport({
-        width: window.innerWidth,
-        height: window.innerHeight,
-        availableHeight: window.innerHeight - (window.outerHeight - window.innerHeight),
-        scrollY: window.scrollY,
-        devicePixelRatio: window.devicePixelRatio || 1
-      });
-    };
-
-    const handleScroll = () => {
-      setViewport(prev => ({
-        ...prev,
-        scrollY: window.scrollY
-      }));
-    };
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-  return viewport;
-};
-
-/**
- * Hook para detectar si el usuario prefiere modo oscuro
- * @returns {boolean} True si prefiere modo oscuro
- */
-export const usePrefersDarkMode = () => {
-  const [prefersDark, setPrefersDark] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
-    const handleChange = (e) => {
-      setPrefersDark(e.matches);
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
-  return prefersDark;
-};
-
-/**
- * Hook para detectar si hay conectividad a internet
- * @returns {boolean} True si hay conexión
- */
-export const useOnlineStatus = () => {
-  const [isOnline, setIsOnline] = useState(() => {
-    if (typeof navigator === 'undefined') return true;
-    return navigator.onLine;
-  });
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  return isOnline;
-};
-
-/**
- * Hook para detectar la velocidad de conexión (experimental)
- * @returns {Object} Información de conexión
- */
-export const useConnectionSpeed = () => {
-  const [connection, setConnection] = useState(() => {
-    if (typeof navigator === 'undefined' || !navigator.connection) {
-      return {
-        effectiveType: '4g',
-        downlink: 10,
-        rtt: 100,
-        saveData: false
-      };
-    }
-
-    const conn = navigator.connection;
-    return {
-      effectiveType: conn.effectiveType || '4g',
-      downlink: conn.downlink || 10,
-      rtt: conn.rtt || 100,
-      saveData: conn.saveData || false
-    };
-  });
-
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || !navigator.connection) return;
-
-    const handleConnectionChange = () => {
-      const conn = navigator.connection;
-      setConnection({
-        effectiveType: conn.effectiveType || '4g',
-        downlink: conn.downlink || 10,
-        rtt: conn.rtt || 100,
-        saveData: conn.saveData || false
-      });
-    };
-
-    navigator.connection.addEventListener('change', handleConnectionChange);
-    
-    return () => {
-      navigator.connection.removeEventListener('change', handleConnectionChange);
-    };
-  }, []);
-
-  return connection;
-};
-
-/**
- * Hook para manejar el redimensionamiento con debounce
- * @param {number} delay - Delay en ms para el debounce
- * @returns {Object} Dimensiones debounced
- */
-export const useDebouncedResize = (delay = 250) => {
-  const [dimensions, setDimensions] = useState(() => ({
-    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
-    height: typeof window !== 'undefined' ? window.innerHeight : 800
-  }));
-
-  useEffect(() => {
-    let timeoutId;
-
-    const handleResize = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        setDimensions({
-          width: window.innerWidth,
-          height: window.innerHeight
-        });
-      }, delay);
-    };
-
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(timeoutId);
-    };
-  }, [delay]);
-
-  return dimensions;
-};
-
-/**
- * Utilidades para responsive design
- */
-export const responsive = {
-  /**
-   * Verifica si es móvil
-   * @param {number} width - Ancho actual
-   * @returns {boolean}
-   */
-  isMobile: (width) => width < BREAKPOINTS.mobile,
-
-  /**
-   * Verifica si es tablet
-   * @param {number} width - Ancho actual
-   * @returns {boolean}
-   */
-  isTablet: (width) => width >= BREAKPOINTS.mobile && width < BREAKPOINTS.tablet,
-
-  /**
-   * Verifica si es desktop
-   * @param {number} width - Ancho actual
-   * @returns {boolean}
-   */
-  isDesktop: (width) => width >= BREAKPOINTS.tablet,
-
-  /**
-   * Obtiene el breakpoint actual
-   * @param {number} width - Ancho actual
-   * @returns {string}
-   */
-  getBreakpoint: (width) => {
-    if (width < BREAKPOINTS.mobile) return 'mobile';
-    if (width < BREAKPOINTS.tablet) return 'tablet';
-    return 'desktop';
-  },
-
-  /**
-   * Aplica estilos responsivos
-   * @param {Object} styles - Estilos por breakpoint
-   * @param {number} width - Ancho actual
-   * @returns {Object}
-   */
-  applyStyles: (styles, width) => {
-    const breakpoint = responsive.getBreakpoint(width);
-    return {
-      ...styles.base,
-      ...styles[breakpoint]
-    };
-  }
-};
+// Exportar por defecto el hook principal
+export default useResponsive;

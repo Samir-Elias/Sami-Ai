@@ -1,9 +1,100 @@
 // ============================================
-// 👁️ LIVE PREVIEW HOOK
+// 👁️ LIVE PREVIEW HOOK - CORREGIDO Y FUNCIONAL
 // ============================================
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { extractCodeBlocks, getPreviewableBlocks, getCodeBlockStats } from '../components/features/LiveCodePreview/CodeBlockExtractor';
+
+/**
+ * Extrae bloques de código básico de mensajes
+ * @param {Array} messages - Mensajes del chat
+ * @returns {Array} Bloques de código extraídos
+ */
+const extractCodeBlocks = (messages = []) => {
+  if (!Array.isArray(messages)) return [];
+
+  const codeBlocks = [];
+  
+  messages.forEach((message, messageIndex) => {
+    if (message && message.role === 'assistant' && message.content) {
+      const blocks = parseCodeBlocks(message.content, messageIndex);
+      codeBlocks.push(...blocks);
+    }
+  });
+
+  return codeBlocks;
+};
+
+/**
+ * Parsea bloques de código de un texto
+ * @param {string} content - Contenido del mensaje
+ * @param {number} messageIndex - Índice del mensaje
+ * @returns {Array} Array de bloques de código
+ */
+const parseCodeBlocks = (content, messageIndex = 0) => {
+  if (!content || typeof content !== 'string') return [];
+
+  const codeBlocks = [];
+  const regex = /```(\w+)?\n?([\s\S]*?)```/g;
+  let match;
+  let blockIndex = 0;
+
+  while ((match = regex.exec(content)) !== null) {
+    const language = (match[1] || 'text').toLowerCase();
+    const code = (match[2] || '').trim();
+    
+    // Solo incluir código significativo
+    if (code.length > 10) {
+      codeBlocks.push({
+        id: `${messageIndex}-${blockIndex}`,
+        language: language,
+        code: code,
+        messageIndex: messageIndex,
+        blockIndex: blockIndex,
+        isPreviewable: isPreviewableLanguage(language),
+        lineCount: code.split('\n').length,
+        charCount: code.length
+      });
+      blockIndex++;
+    }
+  }
+
+  return codeBlocks;
+};
+
+/**
+ * Determina si un lenguaje es previsualizable
+ * @param {string} language - Lenguaje de programación
+ * @returns {boolean} True si es previsualizable
+ */
+const isPreviewableLanguage = (language) => {
+  if (!language || typeof language !== 'string') return false;
+  
+  const previewableLanguages = [
+    'html',
+    'css', 
+    'javascript',
+    'js',
+    'jsx',
+    'react',
+    'vue',
+    'svelte',
+    'typescript',
+    'ts',
+    'tsx'
+  ];
+
+  return previewableLanguages.includes(language.toLowerCase());
+};
+
+/**
+ * Filtra solo bloques previewables
+ * @param {Array} codeBlocks - Array de bloques de código
+ * @returns {Array} Solo bloques previewables
+ */
+const getPreviewableBlocks = (codeBlocks = []) => {
+  if (!Array.isArray(codeBlocks)) return [];
+  return codeBlocks.filter(block => block && block.isPreviewable);
+};
 
 /**
  * Hook principal para manejar Live Preview
@@ -18,38 +109,55 @@ export const useLivePreview = (messages = [], isMobile = false) => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [previewHistory, setPreviewHistory] = useState([]);
 
-  // Extraer y procesar bloques de código
+  // ✅ Extraer y procesar bloques de código de forma segura
   const allCodeBlocks = useMemo(() => {
-    return extractCodeBlocks(messages);
+    try {
+      return extractCodeBlocks(messages);
+    } catch (error) {
+      console.warn('Error extrayendo bloques de código:', error);
+      return [];
+    }
   }, [messages]);
 
   const previewableBlocks = useMemo(() => {
-    return getPreviewableBlocks(allCodeBlocks);
+    try {
+      return getPreviewableBlocks(allCodeBlocks);
+    } catch (error) {
+      console.warn('Error filtrando bloques previewables:', error);
+      return [];
+    }
   }, [allCodeBlocks]);
 
   const currentBlock = useMemo(() => {
-    return previewableBlocks[selectedBlockIndex] || null;
+    if (!Array.isArray(previewableBlocks) || previewableBlocks.length === 0) {
+      return null;
+    }
+    return previewableBlocks[selectedBlockIndex] || previewableBlocks[0] || null;
   }, [previewableBlocks, selectedBlockIndex]);
 
   const stats = useMemo(() => {
-    return getCodeBlockStats(allCodeBlocks);
-  }, [allCodeBlocks]);
+    return {
+      totalBlocks: allCodeBlocks.length,
+      previewableCount: previewableBlocks.length,
+      hasPreviewableCode: previewableBlocks.length > 0
+    };
+  }, [allCodeBlocks, previewableBlocks]);
 
-  // Auto-mostrar preview cuando hay código previsualizable
+  // ✅ Auto-mostrar preview cuando hay código previsualizable (solo en desktop)
   useEffect(() => {
     if (previewableBlocks.length > 0 && !showPreview && !isMobile) {
       setShowPreview(true);
     }
   }, [previewableBlocks.length, showPreview, isMobile]);
 
-  // Resetear índice si el bloque seleccionado ya no existe
+  // ✅ Resetear índice si el bloque seleccionado ya no existe
   useEffect(() => {
     if (selectedBlockIndex >= previewableBlocks.length && previewableBlocks.length > 0) {
       setSelectedBlockIndex(0);
     }
   }, [selectedBlockIndex, previewableBlocks.length]);
 
-  // Guardar historial de previews
+  // ✅ Guardar historial de previews
   useEffect(() => {
     if (currentBlock) {
       setPreviewHistory(prev => {
@@ -153,8 +261,10 @@ export const useLivePreview = (messages = [], isMobile = false) => {
    * Obtener bloques por lenguaje
    */
   const getBlocksByLanguage = useCallback((language) => {
+    if (!language || !Array.isArray(previewableBlocks)) return [];
+    
     return previewableBlocks.filter(block => 
-      block.language.toLowerCase() === language.toLowerCase()
+      block && block.language && block.language.toLowerCase() === language.toLowerCase()
     );
   }, [previewableBlocks]);
 
@@ -162,12 +272,14 @@ export const useLivePreview = (messages = [], isMobile = false) => {
    * Buscar bloques por contenido
    */
   const searchBlocks = useCallback((searchTerm) => {
-    if (!searchTerm.trim()) return previewableBlocks;
+    if (!searchTerm || !searchTerm.trim() || !Array.isArray(previewableBlocks)) {
+      return previewableBlocks;
+    }
 
     const term = searchTerm.toLowerCase();
     return previewableBlocks.filter(block => 
-      block.language.toLowerCase().includes(term) ||
-      block.code.toLowerCase().includes(term)
+      (block.language && block.language.toLowerCase().includes(term)) ||
+      (block.code && block.code.toLowerCase().includes(term))
     );
   }, [previewableBlocks]);
 
@@ -214,9 +326,14 @@ export const useLivePreview = (messages = [], isMobile = false) => {
  */
 export const useHasPreviewableCode = (messages = []) => {
   return useMemo(() => {
-    const codeBlocks = extractCodeBlocks(messages);
-    const previewableBlocks = getPreviewableBlocks(codeBlocks);
-    return previewableBlocks.length > 0;
+    try {
+      const codeBlocks = extractCodeBlocks(messages);
+      const previewableBlocks = getPreviewableBlocks(codeBlocks);
+      return previewableBlocks.length > 0;
+    } catch (error) {
+      console.warn('Error verificando código previsualizable:', error);
+      return false;
+    }
   }, [messages]);
 };
 
@@ -227,96 +344,25 @@ export const useHasPreviewableCode = (messages = []) => {
  */
 export const useCodeStats = (messages = []) => {
   return useMemo(() => {
-    const codeBlocks = extractCodeBlocks(messages);
-    return getCodeBlockStats(codeBlocks);
+    try {
+      const codeBlocks = extractCodeBlocks(messages);
+      return {
+        totalBlocks: codeBlocks.length,
+        previewableCount: getPreviewableBlocks(codeBlocks).length,
+        languages: [...new Set(codeBlocks.map(block => block.language))],
+        totalLines: codeBlocks.reduce((acc, block) => acc + block.lineCount, 0)
+      };
+    } catch (error) {
+      console.warn('Error calculando estadísticas de código:', error);
+      return {
+        totalBlocks: 0,
+        previewableCount: 0,
+        languages: [],
+        totalLines: 0
+      };
+    }
   }, [messages]);
 };
 
-/**
- * Hook para navegación de bloques con teclado
- * @param {Object} livePreviewState - Estado del live preview
- * @param {boolean} isActive - Si el preview está activo
- */
-export const usePreviewKeyboardNavigation = (livePreviewState, isActive = true) => {
-  const { nextBlock, previousBlock, toggleFullscreen, closePreview } = livePreviewState;
-
-  useEffect(() => {
-    if (!isActive) return;
-
-    const handleKeyDown = (event) => {
-      // Solo funcionar si no hay un input activo
-      if (document.activeElement?.tagName === 'INPUT' || 
-          document.activeElement?.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      switch (event.key) {
-        case 'ArrowRight':
-        case 'ArrowDown':
-          event.preventDefault();
-          nextBlock();
-          break;
-        
-        case 'ArrowLeft':
-        case 'ArrowUp':
-          event.preventDefault();
-          previousBlock();
-          break;
-        
-        case 'f':
-        case 'F':
-          if (event.ctrlKey || event.metaKey) {
-            event.preventDefault();
-            toggleFullscreen();
-          }
-          break;
-        
-        case 'Escape':
-          event.preventDefault();
-          closePreview();
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isActive, nextBlock, previousBlock, toggleFullscreen, closePreview]);
-};
-
-/**
- * Hook para auto-guardado de preferencias del preview
- * @param {Object} livePreviewState - Estado del live preview
- */
-export const useLivePreviewPreferences = (livePreviewState) => {
-  const { showPreview, isFullscreen } = livePreviewState;
-
-  // Cargar preferencias guardadas
-  useEffect(() => {
-    try {
-      const savedPrefs = localStorage.getItem('livePreview-preferences');
-      if (savedPrefs) {
-        const prefs = JSON.parse(savedPrefs);
-        // Aplicar preferencias si es necesario
-        console.log('Preferencias cargadas:', prefs);
-      }
-    } catch (error) {
-      console.warn('Error cargando preferencias del Live Preview:', error);
-    }
-  }, []);
-
-  // Guardar preferencias cuando cambien
-  useEffect(() => {
-    try {
-      const preferences = {
-        showPreview,
-        isFullscreen,
-        lastUsed: new Date().toISOString()
-      };
-      localStorage.setItem('livePreview-preferences', JSON.stringify(preferences));
-    } catch (error) {
-      console.warn('Error guardando preferencias del Live Preview:', error);
-    }
-  }, [showPreview, isFullscreen]);
-};
-
+// Exportar hooks
 export default useLivePreview;

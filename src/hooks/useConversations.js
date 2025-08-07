@@ -1,5 +1,5 @@
 // ============================================
-// 💬 CONVERSATIONS HOOK
+// 💬 CONVERSATIONS HOOK - CORREGIDO Y FUNCIONAL
 // ============================================
 
 import { useState, useCallback, useEffect } from 'react';
@@ -13,30 +13,34 @@ export const useConversations = () => {
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Cargar conversaciones del localStorage al inicializar
+  // ✅ Cargar conversaciones del localStorage al inicializar
   useEffect(() => {
     try {
       const savedConversations = localStorage.getItem('devai-conversations');
       if (savedConversations) {
         const parsed = JSON.parse(savedConversations);
-        setConversations(parsed.map(conv => ({
-          ...conv,
-          createdAt: new Date(conv.createdAt),
-          updatedAt: conv.updatedAt ? new Date(conv.updatedAt) : new Date(conv.createdAt)
-        })));
+        if (Array.isArray(parsed)) {
+          const validConversations = parsed.map(conv => ({
+            ...conv,
+            createdAt: new Date(conv.createdAt),
+            updatedAt: conv.updatedAt ? new Date(conv.updatedAt) : new Date(conv.createdAt)
+          }));
+          setConversations(validConversations);
+        }
       }
     } catch (error) {
-      console.error('Error cargando conversaciones:', error);
+      console.warn('Error cargando conversaciones:', error);
+      setConversations([]);
     }
   }, []);
 
-  // Guardar conversaciones en localStorage cuando cambien
+  // ✅ Guardar conversaciones en localStorage cuando cambien
   useEffect(() => {
     if (conversations.length > 0) {
       try {
         localStorage.setItem('devai-conversations', JSON.stringify(conversations));
       } catch (error) {
-        console.error('Error guardando conversaciones:', error);
+        console.warn('Error guardando conversaciones:', error);
       }
     }
   }, [conversations]);
@@ -54,17 +58,21 @@ export const useConversations = () => {
    * @param {Object} metadata - Metadatos adicionales
    */
   const saveConversation = useCallback((messages, metadata = {}) => {
-    if (!messages || messages.length === 0) return;
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return;
+    }
 
     setIsLoading(true);
 
     try {
       const now = new Date();
-      const firstUserMessage = messages.find(msg => msg.role === 'user');
+      const firstUserMessage = messages.find(msg => msg && msg.role === 'user');
       const lastMessage = messages[messages.length - 1];
 
+      const conversationId = currentConversationId || now.getTime();
+
       const conversation = {
-        id: currentConversationId || now.getTime(),
+        id: conversationId,
         title: generateConversationTitle(firstUserMessage?.content) || 'Nueva conversación',
         preview: generatePreview(lastMessage?.content) || '',
         messages: messages,
@@ -92,7 +100,7 @@ export const useConversations = () => {
         return [conversation, ...prev].slice(0, 50); // Límite de 50 conversaciones
       });
 
-      setCurrentConversationId(conversation.id);
+      setCurrentConversationId(conversationId);
     } catch (error) {
       console.error('Error guardando conversación:', error);
     } finally {
@@ -105,7 +113,9 @@ export const useConversations = () => {
    * @param {Object} conversation - Conversación a cargar
    */
   const loadConversation = useCallback((conversation) => {
-    setCurrentConversationId(conversation.id);
+    if (conversation && conversation.id) {
+      setCurrentConversationId(conversation.id);
+    }
   }, []);
 
   /**
@@ -113,6 +123,8 @@ export const useConversations = () => {
    * @param {number} id - ID de la conversación a eliminar
    */
   const deleteConversation = useCallback((id) => {
+    if (!id) return;
+
     setConversations(prev => prev.filter(conv => conv.id !== id));
     
     if (currentConversationId === id) {
@@ -126,6 +138,7 @@ export const useConversations = () => {
    * @returns {Object|null} Conversación encontrada
    */
   const getConversationById = useCallback((id) => {
+    if (!id || !Array.isArray(conversations)) return null;
     return conversations.find(conv => conv.id === id) || null;
   }, [conversations]);
 
@@ -135,13 +148,16 @@ export const useConversations = () => {
    * @returns {Array} Conversaciones que coinciden
    */
   const searchConversations = useCallback((searchTerm) => {
-    if (!searchTerm.trim()) return conversations;
+    if (!searchTerm || !searchTerm.trim() || !Array.isArray(conversations)) {
+      return conversations;
+    }
 
     const term = searchTerm.toLowerCase();
     return conversations.filter(conv => 
-      conv.title.toLowerCase().includes(term) ||
-      conv.preview.toLowerCase().includes(term) ||
-      conv.messages.some(msg => msg.content.toLowerCase().includes(term))
+      (conv.title && conv.title.toLowerCase().includes(term)) ||
+      (conv.preview && conv.preview.toLowerCase().includes(term)) ||
+      (conv.messages && Array.isArray(conv.messages) && 
+       conv.messages.some(msg => msg.content && msg.content.toLowerCase().includes(term)))
     );
   }, [conversations]);
 
@@ -150,8 +166,18 @@ export const useConversations = () => {
    * @returns {Object} Estadísticas
    */
   const getStats = useCallback(() => {
+    if (!Array.isArray(conversations)) {
+      return {
+        totalConversations: 0,
+        totalMessages: 0,
+        avgMessagesPerConversation: 0,
+        providers: {},
+        mostUsedProvider: 'none'
+      };
+    }
+
     const total = conversations.length;
-    const totalMessages = conversations.reduce((acc, conv) => acc + conv.messageCount, 0);
+    const totalMessages = conversations.reduce((acc, conv) => acc + (conv.messageCount || 0), 0);
     const avgMessagesPerConv = total > 0 ? Math.round(totalMessages / total) : 0;
     
     const providers = conversations.reduce((acc, conv) => {
@@ -177,7 +203,12 @@ export const useConversations = () => {
    * @returns {string} JSON de las conversaciones
    */
   const exportConversations = useCallback(() => {
-    return JSON.stringify(conversations, null, 2);
+    try {
+      return JSON.stringify(conversations, null, 2);
+    } catch (error) {
+      console.error('Error exportando conversaciones:', error);
+      return '[]';
+    }
   }, [conversations]);
 
   /**
@@ -189,11 +220,11 @@ export const useConversations = () => {
     try {
       const imported = JSON.parse(jsonData);
       if (!Array.isArray(imported)) {
-        throw new Error('Formato inválido');
+        throw new Error('Formato inválido - debe ser un array');
       }
 
       const validConversations = imported
-        .filter(conv => conv.id && conv.messages && Array.isArray(conv.messages))
+        .filter(conv => conv && conv.id && conv.messages && Array.isArray(conv.messages))
         .map(conv => ({
           ...conv,
           createdAt: new Date(conv.createdAt),
@@ -259,35 +290,11 @@ export const useConversations = () => {
  * @returns {string} Título generado
  */
 const generateConversationTitle = (content) => {
-  if (!content) return 'Nueva conversación';
+  if (!content || typeof content !== 'string') return 'Nueva conversación';
 
   // Limpiar y truncar
   let title = content
     .replace(/```[\s\S]*?```/g, '[código]') // Reemplazar bloques de código
-    .replace(/\n+/g, ' ') // Reemplazar saltos de línea
-    .trim();
-
-  // Truncar a 50 caracteres
-  if (title.length > 50) {
-    title = title.substring(0, 47) + '...';
-  }
-
-  return title || 'Nueva conversación';
-};
-
-/**
- * Generar preview para una conversación basado en el último mensaje
- * @param {string} content - Contenido del último mensaje
- * @returns {string} Preview generado
- */
-const generatePreview = (content) => {
-  if (!content) return '';
-
-  // Limpiar y truncar
-  let preview = content
-    .replace(/```[\s\S]*?```/g, '[código]') // Reemplazar bloques de código
-    .replace(/\*\*(.*?)\*\*/g, '$1') // Remover markdown bold
-    .replace(/\*(.*?)\*/g, '$1') // Remover markdown italic
     .replace(/\n+/g, ' ') // Reemplazar saltos de línea
     .trim();
 
@@ -330,3 +337,4 @@ export const useCurrentConversation = () => {
     loadConversation
   };
 };
+
