@@ -1,58 +1,64 @@
-// devai-agent-backend/src/services/api/backendService.js - Servicio del backend
-const logger = require('../../config/logger');
+// src/services/api/backendService.js
+// ============================================
+// 🔗 SERVICIO DE BACKEND PARA FRONTEND - CommonJS
+// ============================================
 
-/**
- * 🔧 Cliente HTTP base para comunicación interna del backend
- */
-class InternalAPIClient {
+const { BACKEND_CONFIG } = require('../../utils/constants');
+
+// =================================
+// 🌐 CLIENTE HTTP PARA BACKEND
+// =================================
+
+class BackendHTTPClient {
   constructor() {
-    this.timeout = 30000; // 30 segundos
-    this.retryCount = 2;
-    this.retryDelay = 1000;
+    this.baseUrl = BACKEND_CONFIG.BASE_URL;
+    this.timeout = BACKEND_CONFIG.TIMEOUT;
+    this.retryAttempts = BACKEND_CONFIG.RETRY_ATTEMPTS;
+    this.retryDelay = BACKEND_CONFIG.RETRY_DELAY;
   }
 
   /**
-   * Request HTTP interno con reintentos
+   * Request HTTP con reintentos
    */
-  async request(url, options = {}) {
+  async request(endpoint, options = {}) {
+    const url = `${this.baseUrl}${endpoint}`;
     const config = {
       timeout: this.timeout,
-      ...options,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'DevAI-Backend-Client/1.0',
+        'Accept': 'application/json',
         ...options.headers
-      }
+      },
+      ...options
     };
 
     let lastError;
-    
-    for (let attempt = 0; attempt <= this.retryCount; attempt++) {
+
+    for (let attempt = 0; attempt < this.retryAttempts; attempt++) {
       try {
-        logger.info(`🌐 Internal API Request [${attempt + 1}/${this.retryCount + 1}]: ${config.method || 'GET'} ${url}`);
-        
-        const response = await fetch(url, config);
-        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        const response = await fetch(url, {
+          ...config,
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          const error = new Error(
-            errorData.error || 
-            errorData.message || 
-            `HTTP ${response.status}: ${response.statusText}`
-          );
+          const error = new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
           error.status = response.status;
           error.response = errorData;
           throw error;
         }
-        
+
         const data = await response.json();
-        logger.info(`✅ Internal API Success: ${url}`);
-        
         return data;
-        
+
       } catch (error) {
         lastError = error;
-        logger.warn(`❌ Internal API Error [${attempt + 1}/${this.retryCount + 1}]: ${url}`, error.message);
         
         // No reintentar en ciertos errores
         if (
@@ -61,368 +67,412 @@ class InternalAPIClient {
           error.status === 401 ||
           error.status === 403 ||
           error.status === 404 ||
-          attempt === this.retryCount
+          attempt === this.retryAttempts - 1
         ) {
           break;
         }
-        
+
         // Esperar antes del siguiente intento
         await new Promise(resolve => 
           setTimeout(resolve, this.retryDelay * Math.pow(2, attempt))
         );
       }
     }
-    
+
     throw lastError;
   }
 
-  async get(url, params = {}) {
+  async get(endpoint, params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const fullUrl = queryString ? `${url}?${queryString}` : url;
-    return this.request(fullUrl, { method: 'GET' });
+    const fullEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
+    return this.request(fullEndpoint, { method: 'GET' });
   }
 
-  async post(url, data = {}) {
-    return this.request(url, {
+  async post(endpoint, data = {}) {
+    return this.request(endpoint, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(data)
     });
+  }
+
+  async put(endpoint, data = {}) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async delete(endpoint) {
+    return this.request(endpoint, { method: 'DELETE' });
   }
 }
 
+const httpClient = new BackendHTTPClient();
+
 // =================================
-// 🤖 SERVICIOS DE IA EXTERNA
+// 🏥 VERIFICACIÓN DE SALUD
 // =================================
 
 /**
- * 🤖 Llamar a Gemini API
+ * Verificar si el backend está disponible
  */
-const callGeminiAPI = async (messages, apiKey, model = 'gemini-1.5-flash-latest') => {
+const isBackendAvailable = async () => {
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: messages.map(msg => ({
-          role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.content }]
-        })),
-        generationConfig: { 
-          temperature: 0.1, 
-          topK: 32, 
-          topP: 1, 
-          maxOutputTokens: 4096 
-        },
-        systemInstruction: {
-          parts: [{
-            text: "Eres un asistente experto en desarrollo de software. Cuando generes código, incluye ejemplos completos y funcionales. Para HTML, CSS y JavaScript, crea código que se pueda ejecutar directamente. Para React, usa componentes funcionales con hooks. Siempre explica el código generado."
-          }]
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Gemini API Error: ${errorData.error?.message || response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      throw new Error('Formato de respuesta inválido de Gemini API');
-    }
-
-    return {
-      success: true,
-      content: data.candidates[0].content.parts[0].text,
-      usage: data.usageMetadata || { total_tokens: 'N/A' },
-      model: model,
-      provider: 'gemini'
-    };
+    const response = await httpClient.get('/health');
+    return response && response.status === 'ok';
   } catch (error) {
-    logger.error('Error llamando Gemini API:', error);
-    return {
-      success: false,
-      error: error.message,
-      provider: 'gemini'
-    };
+    console.warn('Backend no disponible:', error.message);
+    return false;
   }
 };
 
 /**
- * ⚡ Llamar a Groq API
+ * Obtener estado completo del backend
  */
-const callGroqAPI = async (messages, apiKey, model = 'llama3-8b-8192') => {
+const checkBackendHealth = async () => {
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: 'system',
-            content: 'Eres un asistente experto en desarrollo de software. Analiza código, encuentra bugs, sugiere optimizaciones y explica conceptos técnicos de manera clara.'
-          },
-          ...messages
-        ],
-        model: model,
-        temperature: 0.1,
-        max_tokens: 4096,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Groq API Error: ${errorData.error?.message || response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('Formato de respuesta inválido de Groq API');
-    }
-
+    const health = await httpClient.get('/health');
     return {
-      success: true,
-      content: data.choices[0].message.content,
-      usage: data.usage || { total_tokens: 'N/A' },
-      model: data.model || model,
-      provider: 'groq'
+      isHealthy: health.status === 'ok',
+      data: health
     };
   } catch (error) {
-    logger.error('Error llamando Groq API:', error);
     return {
-      success: false,
+      isHealthy: false,
       error: error.message,
-      provider: 'groq'
-    };
-  }
-};
-
-/**
- * 🤗 Llamar a HuggingFace API
- */
-const callHuggingFaceAPI = async (messages, apiKey, model = 'microsoft/DialoGPT-medium') => {
-  try {
-    const lastMessage = messages[messages.length - 1];
-    
-    const response = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        inputs: lastMessage.content,
-        parameters: {
-          max_length: 1000,
-          temperature: 0.7,
-          do_sample: true,
-          pad_token_id: 50256
-        },
-        options: {
-          wait_for_model: true,
-          use_cache: false
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`HuggingFace API Error: ${errorData.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    let content = '';
-    if (Array.isArray(data)) {
-      content = data[0]?.generated_text || data[0]?.text || 'Error generando respuesta';
-    } else {
-      content = data.generated_text || data.text || 'Error generando respuesta';
-    }
-
-    // Limpiar la respuesta si incluye el input original
-    if (content.startsWith(lastMessage.content)) {
-      content = content.substring(lastMessage.content.length).trim();
-    }
-
-    return {
-      success: true,
-      content: content || 'Error generando respuesta',
-      usage: { total_tokens: 'N/A' },
-      model: model,
-      provider: 'huggingface'
-    };
-  } catch (error) {
-    logger.error('Error llamando HuggingFace API:', error);
-    return {
-      success: false,
-      error: error.message,
-      provider: 'huggingface'
-    };
-  }
-};
-
-/**
- * 🏠 Llamar a Ollama API
- */
-const callOllamaAPI = async (messages, model = 'llama3.2:3b') => {
-  try {
-    const response = await fetch('http://localhost:11434/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        stream: false,
-        options: {
-          temperature: 0.1,
-          top_p: 0.9,
-          top_k: 40
-        }
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ollama API Error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (!data.message || !data.message.content) {
-      throw new Error('Formato de respuesta inválido de Ollama API');
-    }
-
-    return {
-      success: true,
-      content: data.message.content,
-      usage: { 
-        total_tokens: data.eval_count || 'N/A',
-        prompt_tokens: data.prompt_eval_count || 'N/A'
-      },
-      model: model,
-      provider: 'ollama'
-    };
-  } catch (error) {
-    logger.error('Error llamando Ollama API:', error);
-    return {
-      success: false,
-      error: error.message,
-      provider: 'ollama'
+      data: null
     };
   }
 };
 
 // =================================
-// 🎯 SERVICIO PRINCIPAL DE IA
+// 🤖 SERVICIOS DE IA
 // =================================
 
 /**
- * 🤖 Servicio principal para llamadas de IA
+ * Enviar mensaje de chat al backend
  */
-const processAIRequest = async (messages, provider = 'gemini', model, apiKey, options = {}) => {
+const sendChatMessage = async (messages, options = {}) => {
   try {
-    logger.info(`🤖 Procesando solicitud de IA: ${provider} - ${model}`);
-    
-    // Limpiar mensajes del sistema si existen
-    const cleanMessages = messages.filter(msg => msg.role !== 'system');
-    
-    let result;
-    
-    switch (provider) {
-      case 'gemini':
-        result = await callGeminiAPI(cleanMessages, apiKey, model || 'gemini-1.5-flash-latest');
-        break;
-      
-      case 'groq':
-        result = await callGroqAPI(cleanMessages, apiKey, model || 'llama3-8b-8192');
-        break;
-      
-      case 'huggingface':
-        result = await callHuggingFaceAPI(cleanMessages, apiKey, model || 'microsoft/DialoGPT-medium');
-        break;
-      
-      case 'ollama':
-        result = await callOllamaAPI(cleanMessages, model || 'llama3.2:3b');
-        break;
-      
-      default:
-        throw new Error(`Proveedor no soportado: ${provider}`);
-    }
-
-    if (result.success) {
-      logger.info(`✅ Respuesta exitosa de ${provider}`);
-    } else {
-      logger.warn(`❌ Error en ${provider}: ${result.error}`);
-    }
-    
-    return result;
-    
-  } catch (error) {
-    logger.error(`Error procesando solicitud de IA (${provider}):`, error);
-    return {
-      success: false,
-      error: error.message,
-      provider: provider
-    };
-  }
-};
-
-/**
- * 📊 Verificar estado de proveedores de IA
- */
-const checkProvidersStatus = async () => {
-  const providers = ['gemini', 'groq', 'huggingface', 'ollama'];
-  const status = {};
-  
-  for (const provider of providers) {
-    try {
-      const testMessages = [{ role: 'user', content: 'test' }];
-      const startTime = Date.now();
-      
-      let result;
-      switch (provider) {
-        case 'gemini':
-          // Test con API key de ejemplo (fallará pero sabremos si está accesible)
-          result = await callGeminiAPI(testMessages, 'test_key');
-          break;
-        case 'groq':
-          result = await callGroqAPI(testMessages, 'test_key');
-          break;
-        case 'huggingface':
-          result = await callHuggingFaceAPI(testMessages, 'test_key');
-          break;
-        case 'ollama':
-          result = await callOllamaAPI(testMessages);
-          break;
+    const response = await httpClient.post('/api/ai/chat', {
+      messages,
+      provider: options.provider || 'gemini',
+      model: options.model,
+      apiKey: options.apiKey,
+      options: {
+        maxTokens: options.maxTokens || 4000,
+        temperature: options.temperature || 0.7,
+        timeout: options.timeout || 30000
       }
-      
-      const latency = Date.now() - startTime;
-      
-      status[provider] = {
-        available: true, // Si llega aquí es que al menos la API es accesible
-        status: 'ready',
-        latency: latency,
-        error: result.error || null
+    });
+
+    if (response.success) {
+      return {
+        success: true,
+        content: response.content,
+        model: response.model,
+        usage: response.usage,
+        provider: response.provider,
+        source: 'backend'
       };
-      
-    } catch (error) {
-      status[provider] = {
-        available: false,
-        status: 'error',
-        error: error.message,
-        latency: null
-      };
+    } else {
+      throw new Error(response.error || 'Error desconocido del backend');
     }
+  } catch (error) {
+    console.error('Error en sendChatMessage:', error.message);
+    throw new Error(`Backend AI Error: ${error.message}`);
   }
+};
+
+/**
+ * Obtener estado de proveedores de IA
+ */
+const getApiStatus = async () => {
+  try {
+    const response = await httpClient.get('/api/ai/providers/status');
+    return response.providers || {};
+  } catch (error) {
+    console.warn('Error obteniendo estado de APIs:', error.message);
+    return {};
+  }
+};
+
+/**
+ * Probar conexión con proveedor específico
+ */
+const testProviderConnection = async (provider) => {
+  try {
+    const response = await httpClient.post('/api/ai/providers/test', {
+      provider
+    });
+    
+    return {
+      available: response.available,
+      latency: response.latency,
+      error: response.error
+    };
+  } catch (error) {
+    return {
+      available: false,
+      latency: null,
+      error: error.message
+    };
+  }
+};
+
+// =================================
+// 📁 SERVICIOS DE ARCHIVOS
+// =================================
+
+/**
+ * Subir archivos al backend
+ */
+const uploadFiles = async (files, projectName) => {
+  try {
+    const formData = new FormData();
+    
+    // Agregar archivos
+    Array.from(files).forEach((file, index) => {
+      formData.append(`files`, file);
+    });
+    
+    // Agregar metadatos
+    formData.append('projectName', projectName);
+    formData.append('uploadedAt', new Date().toISOString());
+
+    const response = await httpClient.request('/api/files/upload', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        // No establecer Content-Type para FormData
+      }
+    });
+
+    if (response.success) {
+      return {
+        success: true,
+        project: response.project,
+        source: 'backend'
+      };
+    } else {
+      throw new Error(response.error || 'Error subiendo archivos');
+    }
+  } catch (error) {
+    console.error('Error en uploadFiles:', error.message);
+    throw new Error(`Upload Error: ${error.message}`);
+  }
+};
+
+/**
+ * Analizar archivos existentes
+ */
+const analyzeFiles = async (projectId, options = {}) => {
+  try {
+    const response = await httpClient.post(`/api/files/analyze/${projectId}`, {
+      options
+    });
+
+    return response.analysis || {};
+  } catch (error) {
+    console.error('Error analizando archivos:', error.message);
+    throw new Error(`Analysis Error: ${error.message}`);
+  }
+};
+
+// =================================
+// 💾 SERVICIOS DE CONVERSACIONES
+// =================================
+
+/**
+ * Guardar conversación en el backend
+ */
+const saveConversation = async (messages, metadata = {}) => {
+  try {
+    const response = await httpClient.post('/api/conversations', {
+      messages,
+      title: metadata.title || generateConversationTitle(messages),
+      metadata
+    });
+
+    if (response.success) {
+      return {
+        id: response.conversation.id,
+        ...response.conversation
+      };
+    } else {
+      throw new Error(response.error || 'Error guardando conversación');
+    }
+  } catch (error) {
+    console.error('Error en saveConversation:', error.message);
+    return null; // Fallback silencioso
+  }
+};
+
+/**
+ * Obtener conversaciones del backend
+ */
+const getConversations = async (options = {}) => {
+  try {
+    const params = {
+      page: options.page || 1,
+      limit: options.limit || 50,
+      sortBy: options.sortBy || 'updatedAt',
+      sortOrder: options.sortOrder || 'desc'
+    };
+
+    const response = await httpClient.get('/api/conversations', params);
+    return response.conversations || [];
+  } catch (error) {
+    console.error('Error obteniendo conversaciones:', error.message);
+    return [];
+  }
+};
+
+/**
+ * Obtener conversación específica
+ */
+const getConversation = async (conversationId) => {
+  try {
+    const response = await httpClient.get(`/api/conversations/${conversationId}`);
+    return response.conversation || null;
+  } catch (error) {
+    console.error('Error obteniendo conversación:', error.message);
+    return null;
+  }
+};
+
+/**
+ * Eliminar conversación
+ */
+const deleteConversation = async (conversationId) => {
+  try {
+    const response = await httpClient.delete(`/api/conversations/${conversationId}`);
+    return response.success || false;
+  } catch (error) {
+    console.error('Error eliminando conversación:', error.message);
+    return false;
+  }
+};
+
+/**
+ * Actualizar conversación
+ */
+const updateConversation = async (conversationId, updates) => {
+  try {
+    const response = await httpClient.put(`/api/conversations/${conversationId}`, updates);
+    return response.success ? response.conversation : null;
+  } catch (error) {
+    console.error('Error actualizando conversación:', error.message);
+    return null;
+  }
+};
+
+// =================================
+// ⚙️ SERVICIOS DE CONFIGURACIÓN
+// =================================
+
+/**
+ * Obtener configuración del usuario
+ */
+const getUserSettings = async () => {
+  try {
+    const response = await httpClient.get('/api/settings');
+    return response.settings || {};
+  } catch (error) {
+    console.error('Error obteniendo configuración:', error.message);
+    return {};
+  }
+};
+
+/**
+ * Guardar configuración del usuario
+ */
+const saveUserSettings = async (settings) => {
+  try {
+    const response = await httpClient.post('/api/settings', { settings });
+    return response.success || false;
+  } catch (error) {
+    console.error('Error guardando configuración:', error.message);
+    return false;
+  }
+};
+
+// =================================
+// 📊 SERVICIOS DE MÉTRICAS
+// =================================
+
+/**
+ * Enviar métricas de uso
+ */
+const sendMetrics = async (metrics) => {
+  try {
+    await httpClient.post('/api/metrics', { metrics });
+    return true;
+  } catch (error) {
+    // Fallar silenciosamente para métricas
+    console.warn('Error enviando métricas:', error.message);
+    return false;
+  }
+};
+
+/**
+ * Obtener estadísticas del usuario
+ */
+const getUserStats = async () => {
+  try {
+    const response = await httpClient.get('/api/stats');
+    return response.stats || {};
+  } catch (error) {
+    console.error('Error obteniendo estadísticas:', error.message);
+    return {};
+  }
+};
+
+// =================================
+// 🔧 UTILIDADES
+// =================================
+
+/**
+ * Generar título de conversación
+ */
+const generateConversationTitle = (messages) => {
+  const firstUserMessage = messages.find(m => m.role === 'user');
+  if (!firstUserMessage) return 'Nueva Conversación';
   
-  return status;
+  const content = firstUserMessage.content.substring(0, 50).trim();
+  return content.length < firstUserMessage.content.length 
+    ? `${content}...` 
+    : content;
+};
+
+/**
+ * Verificar conectividad básica
+ */
+const ping = async () => {
+  try {
+    const start = Date.now();
+    await httpClient.get('/ping');
+    return Date.now() - start;
+  } catch (error) {
+    throw new Error(`Ping failed: ${error.message}`);
+  }
+};
+
+/**
+ * Obtener información del servidor
+ */
+const getServerInfo = async () => {
+  try {
+    const response = await httpClient.get('/info');
+    return response;
+  } catch (error) {
+    console.error('Error obteniendo info del servidor:', error.message);
+    return {
+      version: 'unknown',
+      status: 'error',
+      uptime: 0
+    };
+  }
 };
 
 // =================================
@@ -430,16 +480,40 @@ const checkProvidersStatus = async () => {
 // =================================
 
 module.exports = {
-  // Cliente interno
-  InternalAPIClient,
+  // Cliente HTTP
+  BackendHTTPClient,
+  httpClient,
   
-  // Servicios de IA individuales
-  callGeminiAPI,
-  callGroqAPI,
-  callHuggingFaceAPI,
-  callOllamaAPI,
+  // Salud del sistema
+  isBackendAvailable,
+  checkBackendHealth,
+  ping,
+  getServerInfo,
   
-  // Servicio principal
-  processAIRequest,
-  checkProvidersStatus
+  // Servicios de IA
+  sendChatMessage,
+  getApiStatus,
+  testProviderConnection,
+  
+  // Servicios de archivos
+  uploadFiles,
+  analyzeFiles,
+  
+  // Servicios de conversaciones
+  saveConversation,
+  getConversations,
+  getConversation,
+  deleteConversation,
+  updateConversation,
+  
+  // Configuración
+  getUserSettings,
+  saveUserSettings,
+  
+  // Métricas
+  sendMetrics,
+  getUserStats,
+  
+  // Utilidades
+  generateConversationTitle
 };

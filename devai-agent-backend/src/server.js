@@ -9,7 +9,7 @@ const { connectRedis } = require('./config/redis');
 // CONFIGURACIONES INICIALES
 // =================================
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5000; // Cambiar a puerto 5000 como muestran los logs
 const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
@@ -41,20 +41,32 @@ async function startServer() {
     // 4. Inicializar servicios adicionales
     await initializeServices();
     
-    // 5. Iniciar el servidor HTTP
+    // 5. CRÍTICO: Verificar que las rutas estén registradas
+    const routes = app._router ? app._router.stack.length : 0;
+    logger.info(`🛣️ Routes registered: ${routes}`);
+    
+    // 6. Iniciar el servidor HTTP
     const server = app.listen(PORT, HOST, () => {
       logger.info(`🌟 Server running on ${HOST}:${PORT}`);
       logger.info(`📖 Environment: ${NODE_ENV}`);
       logger.info(`🔗 Health check: http://${HOST}:${PORT}/health`);
       logger.info(`📚 API Documentation: http://${HOST}:${PORT}/api-docs`);
       logger.info('='.repeat(50));
+      
+      // Debug: Listar rutas registradas
+      if (NODE_ENV === 'development') {
+        listRegisteredRoutes(app);
+      }
     });
 
-    // Configurar timeouts del servidor
+    // 7. Configurar timeouts del servidor
     server.keepAliveTimeout = 65000; // 65 segundos
     server.headersTimeout = 66000; // 66 segundos
     
-    // 6. Configurar manejo de cierre graceful
+    // 8. IMPORTANTE: Test inmediato de rutas críticas
+    setTimeout(() => testCriticalRoutes(), 2000);
+    
+    // 9. Configurar manejo de cierre graceful
     setupGracefulShutdown(server);
     
     return server;
@@ -66,29 +78,31 @@ async function startServer() {
 }
 
 // =================================
-// VALIDACIÓN DE VARIABLES DE ENTORNO
+// VALIDACIÓN DE VARIABLES DE ENTORNO (SIMPLIFICADA)
 // =================================
 
 async function validateEnvironment() {
-  const requiredEnvVars = [
+  // Hacer validaciones opcionales para desarrollo
+  const optionalVars = [
     'DATABASE_URL',
     'JWT_SECRET',
-    'NODE_ENV'
+    'GEMINI_API_KEY',
+    'GROQ_API_KEY'
   ];
 
-  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  const presentVars = optionalVars.filter(varName => process.env[varName]);
+  const missingVars = optionalVars.filter(varName => !process.env[varName]);
+  
+  if (presentVars.length > 0) {
+    logger.info('✅ Present environment variables:', presentVars);
+  }
   
   if (missingVars.length > 0) {
-    logger.error('❌ Missing required environment variables:', missingVars);
-    throw new Error(`Missing environment variables: ${missingVars.join(', ')}`);
+    logger.warn('⚠️ Missing optional environment variables:', missingVars);
+    logger.info('💡 Running in development mode with mocked services');
   }
 
-  // Validaciones adicionales
-  if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
-    logger.warn('⚠️ JWT_SECRET should be at least 32 characters long');
-  }
-
-  logger.info('✅ Environment variables validated');
+  logger.info('✅ Environment validation completed');
 }
 
 // =================================
@@ -99,25 +113,20 @@ async function initializeServices() {
   try {
     logger.info('🔧 Initializing additional services...');
     
-    // Aquí puedes agregar inicialización de otros servicios
-    // Por ejemplo: conectar a servicios de IA, websockets, etc.
+    // Verificar servicios de IA disponibles
+    const services = {
+      gemini: !!process.env.GEMINI_API_KEY,
+      groq: !!process.env.GROQ_API_KEY,
+      huggingface: !!process.env.HUGGINGFACE_API_KEY,
+      ollama: await checkOllamaService()
+    };
     
-    // Ejemplo de inicialización de servicios de IA
-    if (process.env.GEMINI_API_KEY) {
-      logger.info('🤖 Gemini AI service available');
-    }
-    
-    if (process.env.GROQ_API_KEY) {
-      logger.info('⚡ Groq AI service available');
-    }
-    
-    if (process.env.HUGGINGFACE_API_KEY) {
-      logger.info('🤗 HuggingFace service available');
-    }
-    
-    if (process.env.OLLAMA_URL) {
-      logger.info('🦙 Ollama service available');
-    }
+    // Log de servicios disponibles
+    Object.entries(services).forEach(([service, available]) => {
+      const icon = getServiceIcon(service);
+      const status = available ? 'available' : 'simulated';
+      logger.info(`${icon} ${service.charAt(0).toUpperCase() + service.slice(1)} AI service ${status}`);
+    });
     
     // Verificar directorios de almacenamiento
     await ensureStorageDirectories();
@@ -126,7 +135,98 @@ async function initializeServices() {
     
   } catch (error) {
     logger.error('❌ Failed to initialize services:', error);
-    throw error;
+    // No lanzar error, continuar con servicios simulados
+    logger.warn('⚠️ Continuing with simulated services');
+  }
+}
+
+// =================================
+// FUNCIONES AUXILIARES
+// =================================
+
+function getServiceIcon(service) {
+  const icons = {
+    gemini: '🤖',
+    groq: '⚡',
+    huggingface: '🤗',
+    ollama: '🦙'
+  };
+  return icons[service] || '🔧';
+}
+
+async function checkOllamaService() {
+  try {
+    const response = await fetch('http://localhost:11434/api/version', {
+      method: 'GET',
+      signal: AbortSignal.timeout(3000)
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+// =================================
+// DEBUG: LISTAR RUTAS REGISTRADAS
+// =================================
+
+function listRegisteredRoutes(app) {
+  logger.info('📋 Registered routes:');
+  
+  if (!app._router || !app._router.stack) {
+    logger.warn('⚠️ No routes found in app._router.stack');
+    return;
+  }
+  
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      // Ruta directa
+      const methods = Object.keys(middleware.route.methods).join(', ').toUpperCase();
+      logger.info(`  ${methods} ${middleware.route.path}`);
+    } else if (middleware.name === 'router') {
+      // Router middleware
+      logger.info(`  Router middleware: ${middleware.regexp}`);
+      
+      if (middleware.handle && middleware.handle.stack) {
+        middleware.handle.stack.forEach((route) => {
+          if (route.route) {
+            const methods = Object.keys(route.route.methods).join(', ').toUpperCase();
+            const path = middleware.regexp.source.replace('\\', '') + route.route.path;
+            logger.info(`    ${methods} ${path}`);
+          }
+        });
+      }
+    }
+  });
+}
+
+// =================================
+// TEST DE RUTAS CRÍTICAS
+// =================================
+
+async function testCriticalRoutes() {
+  const testRoutes = [
+    { method: 'GET', path: '/health', description: 'Health check' },
+    { method: 'GET', path: '/api-docs', description: 'API documentation' },
+    { method: 'GET', path: '/', description: 'Root endpoint' }
+  ];
+  
+  logger.info('🧪 Testing critical routes...');
+  
+  for (const route of testRoutes) {
+    try {
+      const url = `http://localhost:${PORT}${route.path}`;
+      const response = await fetch(url, {
+        method: route.method,
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      const status = response.ok ? '✅' : '❌';
+      logger.info(`${status} ${route.method} ${route.path} - ${response.status} (${route.description})`);
+      
+    } catch (error) {
+      logger.error(`❌ ${route.method} ${route.path} - ERROR: ${error.message}`);
+    }
   }
 }
 
@@ -149,14 +249,18 @@ async function ensureStorageDirectories() {
     'storage/backups'
   ];
   
-  for (const dir of storageDirectories) {
-    const fullPath = path.join(__dirname, '..', dir);
-    try {
-      await fs.access(fullPath);
-    } catch {
-      await fs.mkdir(fullPath, { recursive: true });
-      logger.info(`📁 Created directory: ${dir}`);
+  try {
+    for (const dir of storageDirectories) {
+      const fullPath = path.join(__dirname, '..', dir);
+      try {
+        await fs.access(fullPath);
+      } catch {
+        await fs.mkdir(fullPath, { recursive: true });
+        logger.info(`📁 Created directory: ${dir}`);
+      }
     }
+  } catch (error) {
+    logger.warn('⚠️ Could not create storage directories:', error.message);
   }
 }
 
@@ -174,14 +278,22 @@ function setupGracefulShutdown(server) {
       
       try {
         // Cerrar conexiones de base de datos
-        const { disconnectDatabase } = require('./config/database');
-        await disconnectDatabase();
-        logger.info('📊 Database connection closed');
+        try {
+          const { disconnectDatabase } = require('./config/database');
+          await disconnectDatabase();
+          logger.info('📊 Database connection closed');
+        } catch (error) {
+          logger.warn('⚠️ Database disconnect error:', error.message);
+        }
         
         // Cerrar conexión de Redis
-        const { disconnectRedis } = require('./config/redis');
-        await disconnectRedis();
-        logger.info('🔄 Redis connection closed');
+        try {
+          const { disconnectRedis } = require('./config/redis');
+          await disconnectRedis();
+          logger.info('🔄 Redis connection closed');
+        } catch (error) {
+          logger.warn('⚠️ Redis disconnect error:', error.message);
+        }
         
         logger.info('✅ Graceful shutdown completed');
         process.exit(0);

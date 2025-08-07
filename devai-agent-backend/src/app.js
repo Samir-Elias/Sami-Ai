@@ -1,173 +1,223 @@
-// ============================================
-// 🎯 CAMBIOS PARA INTEGRAR BACKEND EN APP.JS
-// ============================================
+// src/app.js - Aplicación Express principal
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const path = require('path');
 
-// 1️⃣ CAMBIAR IMPORTS (líneas 12-15)
-// ANTES:
-import { useConversations } from './hooks/useConversations';
-import { useApiStatus } from './hooks/useApiStatus';
-import { callFreeAIAPI, generateFallbackResponse } from './services/api/aiServiceFactory';
+// Importar configuraciones
+const logger = require('./config/logger');
 
-// DESPUÉS:
-import { 
-  useConversations, 
-  useApiStatus, 
-  callFreeAIAPI, 
-  handleFileUpload as adaptedFileUpload,
-  getSystemHealth 
-} from './services/integrationAdapter';
-import { generateFallbackResponse } from './services/api/aiServiceFactory';
+// 🚨 IMPORTAR RUTAS (ESTO ES LO QUE FALTABA)
+const apiRoutes = require('./routes/index');
 
-// ═══════════════════════════════════════════
+// Crear aplicación Express
+const app = express();
 
-// 2️⃣ AGREGAR ESTADO DE SALUD DEL SISTEMA (después de línea 35)
-const [systemHealth, setSystemHealth] = useState(null);
-const [backendMode, setBackendMode] = useState(false);
+// =================================
+// 📋 MIDDLEWARE DE SEGURIDAD Y BÁSICO
+// =================================
 
-// ═══════════════════════════════════════════
+// Helmet para headers de seguridad (configuración permisiva para desarrollo)
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
 
-// 3️⃣ AGREGAR USEEFFECT PARA VERIFICAR BACKEND (después de línea 60)
-// Verificar salud del sistema al inicializar
-useEffect(() => {
-  const checkSystemHealth = async () => {
-    try {
-      const health = await getSystemHealth();
-      setSystemHealth(health);
-      setBackendMode(health.backend.available);
-      
-      if (health.backend.available) {
-        console.log('✅ Backend disponible - Modo híbrido activo');
-      } else {
-        console.log('⚠️ Backend no disponible - Modo solo frontend');
-      }
-    } catch (error) {
-      console.warn('Error verificando sistema:', error);
-      setBackendMode(false);
+// CORS configurado para desarrollo
+app.use(cors({
+  origin: [
+    'http://localhost:3000', 
+    'http://127.0.0.1:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with', 'Accept', 'Origin']
+}));
+
+// Logging de requests (solo en desarrollo)
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('combined', { 
+    stream: { write: msg => logger.info(msg.trim()) },
+    skip: (req, res) => req.url === '/health' // No loggear health checks
+  }));
+}
+
+// Parsers de body
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Servir archivos estáticos
+app.use('/static', express.static(path.join(__dirname, '..', 'public')));
+
+// =================================
+// 🔧 MIDDLEWARE DE DEBUG Y MONITOREO
+// =================================
+
+// Middleware de logging detallado para debug
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  const timestamp = new Date().toISOString();
+  
+  // Log de request entrante
+  logger.info(`📥 ${req.method} ${req.url} - ${req.ip}`);
+  
+  // Timeout de seguridad para requests
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      logger.warn(`⏰ Request timeout: ${req.method} ${req.url}`);
+      res.status(408).json({ 
+        success: false,
+        error: 'Request timeout',
+        code: 'TIMEOUT',
+        timestamp: timestamp
+      });
+    }
+  }, 30000); // 30 segundos
+
+  // Limpiar timeout cuando la respuesta termine
+  res.on('finish', () => {
+    clearTimeout(timeout);
+    const duration = Date.now() - startTime;
+    const status = res.statusCode >= 400 ? '❌' : '✅';
+    logger.info(`${status} ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+  });
+
+  next();
+});
+
+// =================================
+// 🌐 RUTAS PRINCIPALES
+// =================================
+
+// 🏥 Ruta de salud básica (DEBE RESPONDER SIEMPRE)
+app.get('/health', (req, res) => {
+  logger.info('🏥 Health check requested');
+  
+  const healthStatus = {
+    status: 'OK',
+    service: 'DevAI Agent Backend',
+    version: process.env.npm_package_version || '1.0.0',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+    },
+    node_version: process.version
+  };
+  
+  res.status(200).json(healthStatus);
+  logger.info('✅ Health check response sent');
+});
+
+// 📚 Ruta de documentación básica
+app.get('/api-docs', (req, res) => {
+  logger.info('📚 API docs requested');
+  
+  const apiInfo = {
+    title: 'DevAI Agent Backend API',
+    version: '1.0.0',
+    description: 'Backend API para DevAI Agent con integración de múltiples servicios de IA',
+    status: 'active',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      'GET /health': 'Verificar salud del servicio',
+      'GET /api-docs': 'Esta documentación',
+      'GET /': 'Información general de la API',
+      'POST /ai/chat': 'Enviar mensaje a servicios de IA',
+      'GET /ai/status': 'Estado de proveedores de IA',
+      'GET /ai/models': 'Modelos disponibles por proveedor',
+      'POST /files/upload': 'Subir archivos para análisis',
+      'POST /files/analyze': 'Analizar archivos subidos',
+      'GET /conversations': 'Listar conversaciones guardadas',
+      'POST /conversations': 'Guardar nueva conversación'
+    },
+    contact: {
+      developer: 'DevAI Agent Team',
+      repository: 'https://github.com/user/devai-agent-backend'
     }
   };
   
-  checkSystemHealth();
-}, []);
+  res.status(200).json(apiInfo);
+  logger.info('✅ API docs response sent');
+});
 
-// ═══════════════════════════════════════════
+// 🚨 CRÍTICO: REGISTRAR LAS RUTAS DE LA API
+app.use('/', apiRoutes);
 
-// 4️⃣ MODIFICAR FUNCIÓN handleFileUpload (reemplazar función completa alrededor de línea 180)
-/**
- * Manejar subida de archivos con adaptador
- */
-const handleFileUpload = async (event) => {
-  const files = Array.from(event.target.files);
-  if (files.length === 0) return;
+// =================================
+// 🚫 MANEJO DE ERRORES Y 404
+// =================================
 
-  setIsLoading(true);
+// Middleware para rutas no encontradas
+app.use('*', (req, res) => {
+  logger.warn(`🔍 Route not found: ${req.method} ${req.originalUrl}`);
   
-  try {
-    const projectName = files[0].webkitRelativePath ? 
-      files[0].webkitRelativePath.split('/')[0] : 
-      `Proyecto ${new Date().toLocaleDateString()}`;
-
-    // Usar adaptador para subida
-    const result = await adaptedFileUpload(files, projectName, isMobile);
-
-    if (result.success) {
-      setCurrentProject(result.project);
-
-      // Mensaje de confirmación mejorado
-      const confirmationMessage = {
-        role: 'assistant',
-        content: `✅ **Proyecto procesado exitosamente** ${result.source === 'backend' ? '(Backend)' : '(Local)'}\n\n📁 **${result.project.name}**\n📊 ${result.project.totalFiles || result.project.files?.length || 0} archivos procesados\n💾 ${Math.round((result.project.totalSize || result.project.files?.reduce((acc, f) => acc + (f.size || 0), 0) || 0) / 1024)} KB total\n\n🧠 **Contexto disponible:**\n${(result.project.files || []).slice(0, 10).map(f => `• ${f.name} (${f.type || f.language})`).join('\n')}\n\n💡 *Ahora puedes preguntarme sobre tu código!* ${backendMode ? '🔗' : '🏠'}`,
-        agent: backendMode ? 'Sistema (Backend)' : 'Sistema (Local)',
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, confirmationMessage]);
-      setShowWelcome(false);
-
-    } else {
-      throw new Error(result.error || 'Error desconocido procesando archivos');
-    }
-
-  } catch (error) {
-    console.error('Error cargando archivos:', error);
-    const errorMessage = {
-      role: 'assistant',
-      content: `❌ **Error cargando proyecto**: ${error.message}\n\n💡 **Sugerencias:**\n- Asegúrate de que los archivos sean de texto\n- Verifica que no excedan ${isMobile ? '2MB' : '5MB'} por archivo\n- Intenta con menos archivos si es un proyecto grande${backendMode ? '\n- El backend puede estar sobrecargado, intenta nuevamente' : ''}`,
-      agent: 'Sistema',
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, errorMessage]);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-// ═══════════════════════════════════════════
-
-// 5️⃣ MODIFICAR generateThinkingReport (alrededor de línea 150)
-/**
- * Generar reporte de pensamiento mejorado
- */
-const generateThinkingReport = (provider, response, project) => {
-  const mode = backendMode ? 'Backend + ' : 'Directo ';
-  return `${mode}${provider.toUpperCase()} procesó tu consulta
-• Modelo: ${response.model || currentModel}
-• Tokens: ${response.usage?.total_tokens || 'N/A'}${project ? `
-• Contexto: ${project.files?.length || project.totalFiles || 0} archivos` : ''}
-• Modo: ${response.model ? 'API Real' : 'Simulado'} ${backendMode ? '(Backend)' : '(Directo)'}
-• Tiempo: ${new Date().toLocaleTimeString()}`;
-};
-
-// ═══════════════════════════════════════════
-
-// 6️⃣ AGREGAR INDICADOR VISUAL DE BACKEND EN EL HEADER
-// Modificar la prop del Header (alrededor de línea 250) para incluir:
-<Header
-  // ... props existentes
-  backendStatus={systemHealth?.backend}
-  // ... resto de props
-/>
-
-// ═══════════════════════════════════════════
-
-// 7️⃣ AGREGAR INFORMACIÓN DE SISTEMA AL WELCOME (opcional)
-// En la función handleShowWelcome, podrías agregar:
-const handleShowWelcome = () => {
-  setShowWelcome(true);
-  // Log para debugging
-  console.log('Sistema:', {
-    backend: backendMode ? 'Disponible' : 'No disponible',
-    health: systemHealth,
-    apis: apiStatus
+  res.status(404).json({
+    success: false,
+    error: 'Route not found',
+    code: 'NOT_FOUND',
+    message: `The endpoint ${req.method} ${req.originalUrl} does not exist`,
+    availableRoutes: {
+      'GET /health': 'Health check',
+      'GET /api-docs': 'API documentation', 
+      'GET /': 'API information',
+      'POST /ai/chat': 'AI chat endpoint',
+      'GET /ai/status': 'AI providers status'
+    },
+    timestamp: new Date().toISOString()
   });
+});
+
+// Middleware global de manejo de errores
+app.use((error, req, res, next) => {
+  logger.error(`💥 Unhandled error in ${req.method} ${req.url}:`, error);
+  
+  // No enviar stack trace en producción
+  const errorResponse = {
+    success: false,
+    error: 'Internal server error',
+    code: 'INTERNAL_ERROR',
+    message: error.message,
+    timestamp: new Date().toISOString()
+  };
+  
+  if (process.env.NODE_ENV !== 'production') {
+    errorResponse.stack = error.stack;
+    errorResponse.details = {
+      name: error.name,
+      code: error.code,
+      status: error.status
+    };
+  }
+  
+  res.status(error.status || 500).json(errorResponse);
+});
+
+// =================================
+// 🔧 FUNCIONES DE UTILIDAD
+// =================================
+
+// Función para obtener información del servidor
+app.getServerInfo = () => {
+  return {
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: process.env.npm_package_version || '1.0.0',
+    nodeVersion: process.version,
+    environment: process.env.NODE_ENV || 'development',
+    routes: app._router ? app._router.stack.length : 0
+  };
 };
 
-// ═══════════════════════════════════════════
-// 📋 RESUMEN DE CAMBIOS:
-// ═══════════════════════════════════════════
+// =================================
+// EXPORTAR APLICACIÓN
+// =================================
 
-/*
-✅ BENEFICIOS DE ESTA INTEGRACIÓN:
-
-1. 🔄 **Fallback Automático**: Si el backend falla, usa servicios directos
-2. 📁 **Upload Híbrido**: Backend para análisis avanzado, local como fallback  
-3. 💾 **Conversaciones Sincronizadas**: Backend si disponible, localStorage si no
-4. 📊 **Monitoreo**: Conoce el estado del sistema en tiempo real
-5. 🔧 **Zero Breaking Changes**: Tu código actual sigue funcionando
-6. ⚡ **Mejor Performance**: Backend optimizado cuando disponible
-7. 🏠 **Offline Support**: Funciona sin backend
-8. 📱 **Mobile Optimized**: Configuraciones específicas por dispositivo
-
-📥 PRÓXIMOS PASOS:
-
-1. Aplicar estos cambios a tu App.js
-2. Actualizar el componente Header para mostrar estado del backend
-3. Probar con backend ON y OFF
-4. Verificar que las conversaciones se guarden correctamente
-5. Testear upload de archivos en ambos modos
-
-🔗 El adaptador maneja todo automáticamente:
-- Detección de backend disponible
-- Fallbacks inteligentes
-- Configuración óptima por dispositivo
-- Manejo de errores robusto
-*/
+module.exports = app;

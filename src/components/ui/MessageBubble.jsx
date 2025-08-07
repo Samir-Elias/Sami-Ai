@@ -1,5 +1,5 @@
 // ============================================
-// 💬 MESSAGE BUBBLE COMPONENT
+// 💬 MESSAGE BUBBLE COMPONENT - CON API CONTEXT
 // ============================================
 
 import React, { useState } from 'react';
@@ -13,9 +13,12 @@ import {
   Clock,
   Zap,
   Bot,
-  User
+  User,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { renderMessageContent } from '../../utils/messageRenderer';
+import { useApp, useBackendStatus } from '../../context/AppContext';
 
 /**
  * Componente de burbuja de mensaje reutilizable
@@ -32,6 +35,10 @@ const MessageBubble = ({
 }) => {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  
+  // Context integration
+  const { connectionStatus } = useApp();
+  const { isConnected } = useBackendStatus();
 
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
@@ -88,6 +95,8 @@ const MessageBubble = ({
             showCopy={showCopy}
             isCopied={isCopied}
             onCopy={handleCopy}
+            isConnected={isConnected}
+            connectionStatus={connectionStatus}
           />
         )}
         
@@ -123,6 +132,15 @@ const MessageBubble = ({
               onToggle={toggleThinking}
             />
           )}
+
+          {/* Indicador de estado de conexión para mensajes de IA */}
+          {isAssistant && message.provider && (
+            <ConnectionIndicator 
+              provider={message.provider}
+              isConnected={isConnected}
+              connectionStatus={connectionStatus}
+            />
+          )}
         </div>
       </div>
       
@@ -132,6 +150,7 @@ const MessageBubble = ({
         isSystem={isSystem}
         message={message}
         order={isUser ? 1 : 2}
+        isConnected={isConnected}
       />
     </div>
   );
@@ -146,7 +165,9 @@ const MessageHeader = ({
   showTimestamp, 
   showCopy, 
   isCopied, 
-  onCopy 
+  onCopy,
+  isConnected,
+  connectionStatus
 }) => (
   <div style={{ 
     display: 'flex', 
@@ -159,7 +180,9 @@ const MessageHeader = ({
       <div style={{
         width: '18px',
         height: '18px',
-        background: 'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)',
+        background: isConnected ? 
+          'linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)' : 
+          'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',
@@ -177,10 +200,13 @@ const MessageHeader = ({
           fontSize: '10px', 
           color: '#6b7280',
           padding: '2px 6px',
-          backgroundColor: 'rgba(55, 65, 81, 0.5)',
+          backgroundColor: isConnected ? 
+            'rgba(55, 65, 81, 0.5)' : 
+            'rgba(239, 68, 68, 0.2)',
           borderRadius: '8px'
         }}>
           {message.provider.toUpperCase()}
+          {!isConnected && ' ❌'}
         </span>
       )}
       
@@ -189,6 +215,9 @@ const MessageHeader = ({
           {message.timestamp.toLocaleTimeString()}
         </span>
       )}
+
+      {/* Connection status indicator */}
+      <ConnectionStatusBadge isConnected={isConnected} connectionStatus={connectionStatus} />
     </div>
 
     {/* Acciones */}
@@ -203,6 +232,49 @@ const MessageHeader = ({
       </div>
     )}
   </div>
+);
+
+/**
+ * Indicador de estado de conexión
+ */
+const ConnectionStatusBadge = ({ isConnected, connectionStatus }) => {
+  if (!connectionStatus) return null;
+  
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+      fontSize: '10px',
+      color: isConnected ? '#10b981' : '#ef4444'
+    }}>
+      {isConnected ? 
+        <Wifi style={{ width: '10px', height: '10px' }} /> : 
+        <WifiOff style={{ width: '10px', height: '10px' }} />
+      }
+    </div>
+  );
+};
+
+/**
+ * Indicador de conexión en la burbuja
+ */
+const ConnectionIndicator = ({ provider, isConnected, connectionStatus }) => (
+  <div style={{
+    position: 'absolute',
+    bottom: '4px',
+    right: '8px',
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    backgroundColor: isConnected ? '#10b981' : '#ef4444',
+    border: '1px solid rgba(255,255,255,0.2)',
+    opacity: 0.8
+  }}
+  title={isConnected ? 
+    `Conectado a ${provider.toUpperCase()}` : 
+    `Desconectado de ${provider.toUpperCase()}`
+  } />
 );
 
 /**
@@ -243,7 +315,7 @@ const ActionButton = ({ onClick, icon, title, variant = 'default' }) => {
 /**
  * Avatar del mensaje
  */
-const MessageAvatar = ({ isUser, isSystem, message, order }) => {
+const MessageAvatar = ({ isUser, isSystem, message, order, isConnected }) => {
   let backgroundColor, icon;
 
   if (isUser) {
@@ -253,7 +325,9 @@ const MessageAvatar = ({ isUser, isSystem, message, order }) => {
     backgroundColor = '#6b7280';
     icon = <AlertCircle style={{ width: '12px', height: '12px' }} />;
   } else {
-    backgroundColor = 'rgba(55, 65, 81, 0.8)';
+    backgroundColor = isConnected ? 
+      'rgba(55, 65, 81, 0.8)' : 
+      'rgba(239, 68, 68, 0.8)';
     icon = <Bot style={{ width: '12px', height: '12px' }} />;
   }
 
@@ -269,9 +343,26 @@ const MessageAvatar = ({ isUser, isSystem, message, order }) => {
       backgroundColor: backgroundColor,
       order: order,
       boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      border: '2px solid rgba(255,255,255,0.1)'
+      border: isConnected ? 
+        '2px solid rgba(255,255,255,0.1)' : 
+        '2px solid rgba(239, 68, 68, 0.3)',
+      position: 'relative'
     }}>
       {icon}
+      
+      {/* Connection indicator */}
+      {!isUser && !isSystem && (
+        <div style={{
+          position: 'absolute',
+          bottom: '-2px',
+          right: '-2px',
+          width: '8px',
+          height: '8px',
+          borderRadius: '50%',
+          backgroundColor: isConnected ? '#10b981' : '#ef4444',
+          border: '1px solid white'
+        }} />
+      )}
     </div>
   );
 };
@@ -300,6 +391,13 @@ const MessageMetadata = ({ message, isMobile }) => (
         <span>•</span>
         <Zap style={{ width: '10px', height: '10px' }} />
         <span>{message.usage.total_tokens} tokens</span>
+      </>
+    )}
+
+    {message.provider && (
+      <>
+        <span>•</span>
+        <span>{message.provider.toUpperCase()}</span>
       </>
     )}
   </div>
@@ -365,6 +463,7 @@ const ThinkingPanel = ({ thinking, isExpanded, onToggle }) => (
  */
 const CompactMessageBubble = ({ message, isMobile }) => {
   const isUser = message.role === 'user';
+  const { isConnected } = useBackendStatus();
   
   return (
     <div style={{
@@ -377,10 +476,12 @@ const CompactMessageBubble = ({ message, isMobile }) => {
         maxWidth: isMobile ? '90%' : '80%',
         padding: '8px 12px',
         borderRadius: '12px',
-        backgroundColor: isUser ? '#2563eb' : 'rgba(55, 65, 81, 0.8)',
+        backgroundColor: isUser ? '#2563eb' : 
+          isConnected ? 'rgba(55, 65, 81, 0.8)' : 'rgba(239, 68, 68, 0.8)',
         fontSize: '13px',
         lineHeight: '1.4',
-        order: isUser ? 2 : 1
+        order: isUser ? 2 : 1,
+        border: !isUser && !isConnected ? '1px solid rgba(239, 68, 68, 0.3)' : 'none'
       }}>
         {renderMessageContent(message.content)}
       </div>
@@ -389,7 +490,8 @@ const CompactMessageBubble = ({ message, isMobile }) => {
         width: '20px',
         height: '20px',
         borderRadius: '50%',
-        backgroundColor: isUser ? '#2563eb' : '#6b7280',
+        backgroundColor: isUser ? '#2563eb' : 
+          isConnected ? '#6b7280' : '#ef4444',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -410,6 +512,7 @@ const CompactMessageBubble = ({ message, isMobile }) => {
  */
 const MinimalMessageBubble = ({ message, isMobile }) => {
   const isUser = message.role === 'user';
+  const { isConnected } = useBackendStatus();
   
   return (
     <div style={{
@@ -420,10 +523,14 @@ const MinimalMessageBubble = ({ message, isMobile }) => {
       {!isUser && (
         <div style={{
           fontSize: '11px',
-          color: '#9ca3af',
-          marginBottom: '2px'
+          color: isConnected ? '#9ca3af' : '#ef4444',
+          marginBottom: '2px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px'
         }}>
           AI Assistant
+          {!isConnected && <WifiOff style={{ width: '10px', height: '10px' }} />}
         </div>
       )}
       
@@ -431,7 +538,8 @@ const MinimalMessageBubble = ({ message, isMobile }) => {
         padding: '6px 0',
         fontSize: '14px',
         lineHeight: '1.5',
-        color: isUser ? '#e2e8f0' : '#f3f4f6'
+        color: isUser ? '#e2e8f0' : 
+          isConnected ? '#f3f4f6' : '#fecaca'
       }}>
         {renderMessageContent(message.content)}
       </div>

@@ -1,29 +1,88 @@
-// src/services/integrationAdapter.js - Adaptador para integración backend/frontend
-import { 
-  sendChatMessage as backendChat,
+// src/services/integrationAdapter.js - CORRECCIÓN PARA TU ARCHIVO EXISTENTE
+// ============================================
+// 🔗 REEMPLAZAR IMPORTS POR REQUIRES
+// ============================================
+
+/*
+PASO 1: Reemplaza todas las líneas de import al inicio del archivo por:
+*/
+
+const React = require('react');
+const { 
+  sendChatMessage: backendChat,
   checkBackendHealth,
   isBackendAvailable,
-  uploadFiles as backendUpload,
-  getApiStatus as backendApiStatus,
+  uploadFiles: backendUpload,
+  getApiStatus: backendApiStatus,
   testProviderConnection,
-  saveConversation as backendSaveConversation,
-  getConversations as backendGetConversations,
-  deleteConversation as backendDeleteConversation
-} from './api/backendService';
+  saveConversation: backendSaveConversation,
+  getConversations: backendGetConversations,
+  deleteConversation: backendDeleteConversation
+} = require('./api/backendService');
 
 // Importar servicios directos como fallback
-import { callFreeAIAPI as directCallFreeAI, generateFallbackResponse } from './api/aiServiceFactory';
-import { processFiles } from './fileService';
+const { callFreeAIAPI: directCallFreeAI, generateFallbackResponse } = require('./api/aiServiceFactory');
+const { processFiles } = require('./fileService');
+
+/*
+PASO 2: Al final del archivo, reemplaza todas las export por:
+*/
+
+module.exports = {
+  callFreeAIAPI,
+  handleFileUpload,
+  useApiStatus,
+  useConversations,
+  getSystemHealth,
+  getOptimalConfiguration
+};
+
+/*
+PASO 3: Asegúrate de que todos los React.useState sean explícitos:
+- Cambia: const [state, setState] = useState(...)
+- Por: const [state, setState] = React.useState(...)
+
+- Cambia: useEffect(...)
+- Por: React.useEffect(...)
+
+- Cambia: useCallback(...)
+- Por: React.useCallback(...)
+
+PASO 4: Si hay algún export default, eliminarlo y usar solo module.exports
+*/
+
+// ============================================
+// 📝 ARCHIVO COMPLETO CORREGIDO (ALTERNATIVA)
+// ============================================
+
+// Si prefieres reemplazar completamente tu archivo, aquí está la versión corregida:
+
+const React = require('react');
+
+// Backend services
+const { 
+  sendChatMessage: backendChat,
+  checkBackendHealth,
+  isBackendAvailable,
+  uploadFiles: backendUpload,
+  getApiStatus: backendApiStatus,
+  testProviderConnection,
+  saveConversation: backendSaveConversation,
+  getConversations: backendGetConversations,
+  deleteConversation: backendDeleteConversation
+} = require('./api/backendService');
+
+// Direct services as fallback
+const { callFreeAIAPI: directCallFreeAI, generateFallbackResponse } = require('./api/aiServiceFactory');
+const { processFiles } = require('./fileService');
 
 /**
  * 🎯 ADAPTADOR PRINCIPAL PARA CHAT
- * Intenta backend primero, fallback a servicios directos
  */
-export const callFreeAIAPI = async (messages, apiKey, provider, model, isMobile = false) => {
+const callFreeAIAPI = async (messages, apiKey, provider, model, isMobile = false) => {
   let backendAvailable = false;
   
   try {
-    // Verificar rápidamente si el backend está disponible
     backendAvailable = await isBackendAvailable();
   } catch (error) {
     console.log('Backend no disponible, usando servicios directos');
@@ -49,14 +108,12 @@ export const callFreeAIAPI = async (messages, apiKey, provider, model, isMobile 
     }
   }
   
-  // Fallback a servicios directos
   try {
     console.log('🔄 Usando servicios directos de IA...');
     return await directCallFreeAI(messages, apiKey, provider, model, isMobile);
   } catch (error) {
     console.error('❌ Servicios directos fallaron, usando respuesta simulada');
     
-    // Último fallback: respuesta simulada
     const lastMessage = messages[messages.length - 1];
     const fallback = generateFallbackResponse(lastMessage?.content || '', provider);
     
@@ -72,9 +129,8 @@ export const callFreeAIAPI = async (messages, apiKey, provider, model, isMobile 
 
 /**
  * 📁 ADAPTADOR PARA SUBIDA DE ARCHIVOS
- * Intenta backend primero, fallback a procesamiento local
  */
-export const handleFileUpload = async (files, projectName, isMobile = false) => {
+const handleFileUpload = async (files, projectName, isMobile = false) => {
   let backendAvailable = false;
   
   try {
@@ -101,22 +157,26 @@ export const handleFileUpload = async (files, projectName, isMobile = false) => 
     }
   }
 
-  // Fallback a procesamiento local
   try {
     console.log('🔧 Procesando archivos localmente...');
     const options = {
       maxFiles: isMobile ? 5 : 20,
       maxTotalSize: isMobile ? 10 * 1024 * 1024 : 50 * 1024 * 1024,
-      skipLargeFiles: true
+      skipLargeFiles: true,
+      isMobile
     };
 
-    const project = await processFiles(files, options);
+    const result = await processFiles(files, options);
     
-    return {
-      success: true,
-      project: project,
-      source: 'local'
-    };
+    if (result.success) {
+      return {
+        success: true,
+        project: result.project,
+        source: 'local'
+      };
+    } else {
+      throw new Error(result.errors.join(', '));
+    }
   } catch (error) {
     console.error('❌ Error procesando archivos localmente:', error);
     return {
@@ -129,9 +189,8 @@ export const handleFileUpload = async (files, projectName, isMobile = false) => 
 
 /**
  * 📊 ADAPTADOR PARA ESTADO DE APIs
- * Combina información del backend y verificación directa
  */
-export const useApiStatus = (isMobile = false) => {
+const useApiStatus = (isMobile = false) => {
   const [apiStatus, setApiStatus] = React.useState({});
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -143,7 +202,6 @@ export const useApiStatus = (isMobile = false) => {
     try {
       let backendStatus = {};
       
-      // Intentar obtener estado del backend
       try {
         backendStatus = await backendApiStatus();
         console.log('📊 Estado de APIs desde backend:', backendStatus);
@@ -151,7 +209,6 @@ export const useApiStatus = (isMobile = false) => {
         console.log('No se pudo obtener estado desde backend');
       }
       
-      // Si el backend no tiene info, verificar directamente
       if (Object.keys(backendStatus).length === 0) {
         console.log('🔍 Verificando APIs directamente...');
         
@@ -184,7 +241,6 @@ export const useApiStatus = (isMobile = false) => {
     } catch (error) {
       console.error('Error verificando estado de APIs:', error);
       
-      // Status de fallback
       const fallbackStatus = {
         gemini: { available: false, status: 'unknown', error: 'No verificado' },
         groq: { available: false, status: 'unknown', error: 'No verificado' }
@@ -210,14 +266,12 @@ export const useApiStatus = (isMobile = false) => {
 
 /**
  * 💾 ADAPTADOR PARA CONVERSACIONES
- * Intenta backend primero, fallback a localStorage
  */
-export const useConversations = () => {
+const useConversations = () => {
   const [conversations, setConversations] = React.useState([]);
   const [currentConversationId, setCurrentConversationId] = React.useState(null);
   const [isBackendMode, setIsBackendMode] = React.useState(false);
 
-  // Verificar si podemos usar el backend
   React.useEffect(() => {
     checkBackendAvailability();
   }, []);
@@ -272,7 +326,6 @@ export const useConversations = () => {
       }
     }
 
-    // Fallback a localStorage
     try {
       const conversation = {
         id: Date.now().toString(),
@@ -307,7 +360,6 @@ export const useConversations = () => {
       }
     }
 
-    // Fallback a localStorage
     try {
       const updated = conversations.filter(c => c.id !== conversationId);
       setConversations(updated);
@@ -377,7 +429,7 @@ export const useConversations = () => {
 /**
  * 🏥 VERIFICADOR DE SALUD DEL SISTEMA
  */
-export const getSystemHealth = async () => {
+const getSystemHealth = async () => {
   try {
     const health = await checkBackendHealth();
     return {
@@ -409,7 +461,7 @@ export const getSystemHealth = async () => {
 /**
  * 🔧 UTILIDADES DE CONFIGURACIÓN
  */
-export const getOptimalConfiguration = async (isMobile = false) => {
+const getOptimalConfiguration = async (isMobile = false) => {
   const health = await getSystemHealth();
   
   const config = {
@@ -429,7 +481,11 @@ export const getOptimalConfiguration = async (isMobile = false) => {
   return config;
 };
 
-export default {
+// ============================================
+// 🔄 EXPORTACIONES FINALES - CommonJS
+// ============================================
+
+module.exports = {
   callFreeAIAPI,
   handleFileUpload,
   useApiStatus,

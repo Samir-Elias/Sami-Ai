@@ -1,461 +1,548 @@
+// src/utils/constants.js
+// ============================================
+// 🔧 CONSTANTES GLOBALES DEL SISTEMA - CommonJS
+// ============================================
+
 // =================================
-// CONSTANTES DE LA APLICACIÓN
+// 🤖 CONFIGURACIÓN DE APIS DE IA
 // =================================
 
-// Información de la aplicación
-const APP_INFO = {
-  NAME: 'DevAI Agent Backend',
-  VERSION: '1.0.0',
-  DESCRIPTION: 'Backend API para aplicaciones de IA con múltiples proveedores',
-  AUTHOR: 'DevAI Team',
-  LICENSE: 'MIT'
+const API_KEYS = {
+  gemini: process.env.REACT_APP_GEMINI_API_KEY || '',
+  groq: process.env.REACT_APP_GROQ_API_KEY || '',
+  huggingface: process.env.REACT_APP_HUGGINGFACE_API_KEY || '',
+  ollama: '' // No requiere API key para localhost
+};
+
+const DEFAULT_PROVIDER = process.env.REACT_APP_DEFAULT_AI_PROVIDER || 'gemini';
+const DEFAULT_MODEL = process.env.REACT_APP_DEFAULT_MODEL || 'gemini-1.5-flash-latest';
+
+// =================================
+// 🌐 CONFIGURACIÓN DE BACKEND
+// =================================
+
+const BACKEND_CONFIG = {
+  BASE_URL: process.env.REACT_APP_BACKEND_URL || 'http://localhost:3001',
+  API_VERSION: process.env.REACT_APP_API_VERSION || 'v1',
+  TIMEOUT: parseInt(process.env.REACT_APP_API_TIMEOUT) || 30000,
+  RETRY_ATTEMPTS: parseInt(process.env.REACT_APP_RETRY_ATTEMPTS) || 2,
+  RETRY_DELAY: parseInt(process.env.REACT_APP_RETRY_DELAY) || 1000
 };
 
 // =================================
-// CÓDIGOS DE ESTADO HTTP
+// 📱 CONFIGURACIÓN DE DISPOSITIVOS
 // =================================
 
-const HTTP_STATUS = {
-  // Éxito
-  OK: 200,
-  CREATED: 201,
-  ACCEPTED: 202,
-  NO_CONTENT: 204,
-  
-  // Redirección
-  MOVED_PERMANENTLY: 301,
-  FOUND: 302,
-  NOT_MODIFIED: 304,
-  
-  // Errores del cliente
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  METHOD_NOT_ALLOWED: 405,
-  NOT_ACCEPTABLE: 406,
-  CONFLICT: 409,
-  GONE: 410,
-  UNPROCESSABLE_ENTITY: 422,
-  TOO_MANY_REQUESTS: 429,
-  
-  // Errores del servidor
-  INTERNAL_SERVER_ERROR: 500,
-  NOT_IMPLEMENTED: 501,
-  BAD_GATEWAY: 502,
-  SERVICE_UNAVAILABLE: 503,
-  GATEWAY_TIMEOUT: 504
-};
-
-// =================================
-// ROLES DE USUARIO
-// =================================
-
-const USER_ROLES = {
-  ADMIN: 'admin',
-  MODERATOR: 'moderator',
-  USER: 'user',
-  GUEST: 'guest'
-};
-
-// Jerarquía de roles (mayor número = más permisos)
-const ROLE_HIERARCHY = {
-  [USER_ROLES.GUEST]: 0,
-  [USER_ROLES.USER]: 1,
-  [USER_ROLES.MODERATOR]: 2,
-  [USER_ROLES.ADMIN]: 3
-};
-
-// =================================
-// PROVEEDORES DE IA
-// =================================
-
-const AI_PROVIDERS = {
-  GEMINI: 'gemini',
-  GROQ: 'groq',
-  HUGGINGFACE: 'huggingface',
-  OLLAMA: 'ollama',
-  OPENAI: 'openai', // Para futuro
-  ANTHROPIC: 'anthropic' // Para futuro
-};
-
-// Configuración de proveedores
-const AI_PROVIDER_CONFIG = {
-  [AI_PROVIDERS.GEMINI]: {
-    name: 'Google Gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com',
-    models: ['gemini-pro', 'gemini-pro-vision'],
-    maxTokens: 32768,
-    supportsStreaming: true,
-    supportsVision: true
+const DEVICE_CONFIGS = {
+  mobile: {
+    maxFiles: 5,
+    maxFileSize: 2 * 1024 * 1024, // 2MB
+    maxTotalSize: 10 * 1024 * 1024, // 10MB
+    maxTokens: 2000,
+    timeout: 15000,
+    supportedProviders: ['gemini', 'groq'],
+    features: {
+      fileUpload: true,
+      livePreview: false,
+      multipleChats: true,
+      advancedAnalysis: false
+    }
   },
-  [AI_PROVIDERS.GROQ]: {
-    name: 'Groq',
-    baseUrl: 'https://api.groq.com',
-    models: ['mixtral-8x7b-32768', 'llama2-70b-4096'],
-    maxTokens: 32768,
-    supportsStreaming: true,
-    supportsVision: false
-  },
-  [AI_PROVIDERS.HUGGINGFACE]: {
-    name: 'Hugging Face',
-    baseUrl: 'https://api-inference.huggingface.co',
-    models: ['meta-llama/Llama-2-70b-chat-hf'],
-    maxTokens: 4096,
-    supportsStreaming: false,
-    supportsVision: false
-  },
-  [AI_PROVIDERS.OLLAMA]: {
-    name: 'Ollama',
-    baseUrl: process.env.OLLAMA_URL || 'http://localhost:11434',
-    models: ['llama2', 'codellama', 'mistral'],
-    maxTokens: 4096,
-    supportsStreaming: true,
-    supportsVision: false
+  desktop: {
+    maxFiles: 50,
+    maxFileSize: 5 * 1024 * 1024, // 5MB
+    maxTotalSize: 100 * 1024 * 1024, // 100MB
+    maxTokens: 4000,
+    timeout: 30000,
+    supportedProviders: ['gemini', 'groq', 'huggingface', 'ollama'],
+    features: {
+      fileUpload: true,
+      livePreview: true,
+      multipleChats: true,
+      advancedAnalysis: true
+    }
   }
 };
 
 // =================================
-// TIPOS DE ARCHIVOS
+// 📁 CONFIGURACIÓN DE ARCHIVOS
 // =================================
 
-const FILE_TYPES = {
-  IMAGE: 'image',
-  DOCUMENT: 'document',
-  CODE: 'code',
-  ARCHIVE: 'archive',
-  AUDIO: 'audio',
-  VIDEO: 'video',
-  OTHER: 'other'
-};
-
-// Extensiones permitidas por tipo
-const ALLOWED_FILE_EXTENSIONS = {
-  [FILE_TYPES.IMAGE]: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'],
-  [FILE_TYPES.DOCUMENT]: ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.csv'],
-  [FILE_TYPES.CODE]: [
-    '.js', '.ts', '.jsx', '.tsx', '.vue', '.svelte',
-    '.html', '.css', '.scss', '.sass', '.less',
-    '.json', '.xml', '.yaml', '.yml',
-    '.py', '.rb', '.php', '.java', '.c', '.cpp', '.cs',
-    '.go', '.rs', '.swift', '.kt', '.scala',
-    '.sh', '.bash', '.ps1', '.bat',
-    '.sql', '.graphql', '.prisma'
+const FILE_CONFIGS = {
+  supportedExtensions: [
+    // Código
+    '.js', '.jsx', '.ts', '.tsx', '.vue', '.svelte', '.astro',
+    '.py', '.java', '.cpp', '.c', '.cs', '.rb', '.go', '.rs', '.swift', '.kt', '.dart',
+    '.php', '.scala', '.clj', '.hs', '.elm', '.f90', '.r', '.m', '.pl',
+    
+    // Web
+    '.html', '.htm', '.css', '.scss', '.sass', '.less', '.xml', '.svg',
+    
+    // Datos
+    '.json', '.yaml', '.yml', '.toml', '.ini', '.env', '.config',
+    
+    // Documentación
+    '.md', '.mdx', '.txt', '.rst', '.tex',
+    
+    // Build/Config
+    '.dockerfile', '.gitignore', '.npmrc', '.eslintrc', '.prettierrc',
+    'package.json', 'tsconfig.json', 'webpack.config.js', 'vite.config.js'
   ],
-  [FILE_TYPES.ARCHIVE]: ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'],
-  [FILE_TYPES.AUDIO]: ['.mp3', '.wav', '.ogg', '.m4a', '.aac'],
-  [FILE_TYPES.VIDEO]: ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm']
-};
-
-// Tamaños máximos por tipo (en bytes)
-const MAX_FILE_SIZES = {
-  [FILE_TYPES.IMAGE]: 10 * 1024 * 1024, // 10MB
-  [FILE_TYPES.DOCUMENT]: 50 * 1024 * 1024, // 50MB
-  [FILE_TYPES.CODE]: 5 * 1024 * 1024, // 5MB
-  [FILE_TYPES.ARCHIVE]: 100 * 1024 * 1024, // 100MB
-  [FILE_TYPES.AUDIO]: 50 * 1024 * 1024, // 50MB
-  [FILE_TYPES.VIDEO]: 200 * 1024 * 1024, // 200MB
-  [FILE_TYPES.OTHER]: 25 * 1024 * 1024 // 25MB
-};
-
-// =================================
-// TIPOS DE MENSAJES
-// =================================
-
-const MESSAGE_TYPES = {
-  USER: 'user',
-  ASSISTANT: 'assistant',
-  SYSTEM: 'system',
-  FUNCTION: 'function',
-  ERROR: 'error'
-};
-
-// =================================
-// ESTADOS DE CONVERSACIÓN
-// =================================
-
-const CONVERSATION_STATUS = {
-  ACTIVE: 'active',
-  ARCHIVED: 'archived',
-  DELETED: 'deleted',
-  PAUSED: 'paused'
-};
-
-// =================================
-// ESTADOS DE PROYECTO
-// =================================
-
-const PROJECT_STATUS = {
-  DRAFT: 'draft',
-  ACTIVE: 'active',
-  COMPLETED: 'completed',
-  ARCHIVED: 'archived',
-  DELETED: 'deleted'
-};
-
-// =================================
-// NIVELES DE LOG
-// =================================
-
-const LOG_LEVELS = {
-  ERROR: 'error',
-  WARN: 'warn',
-  INFO: 'info',
-  HTTP: 'http',
-  VERBOSE: 'verbose',
-  DEBUG: 'debug',
-  SILLY: 'silly'
-};
-
-// =================================
-// CONFIGURACIONES DE RATE LIMITING
-// =================================
-
-const RATE_LIMITS = {
-  // Autenticación
-  AUTH_REGISTER: {
-    windowMs: 60 * 60 * 1000, // 1 hora
-    max: 5 // 5 registros por hora
-  },
-  AUTH_LOGIN: {
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 10 // 10 intentos por 15 minutos
-  },
-  AUTH_REFRESH: {
-    windowMs: 5 * 60 * 1000, // 5 minutos
-    max: 20 // 20 refreshes por 5 minutos
+  
+  maxSizePerFile: {
+    mobile: 2 * 1024 * 1024, // 2MB
+    desktop: 5 * 1024 * 1024  // 5MB
   },
   
-  // API General
-  API_GENERAL: {
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 1000 // 1000 requests por 15 minutos
+  maxTotalSize: {
+    mobile: 10 * 1024 * 1024,  // 10MB
+    desktop: 100 * 1024 * 1024 // 100MB
   },
   
-  // IA Chat
-  AI_CHAT: {
-    windowMs: 60 * 1000, // 1 minuto
-    max: 30 // 30 mensajes por minuto
+  maxFilesPerUpload: {
+    mobile: 5,
+    desktop: 50
   },
   
-  // Upload de archivos
-  FILE_UPLOAD: {
-    windowMs: 60 * 60 * 1000, // 1 hora
-    max: 100 // 100 uploads por hora
+  processingTimeout: {
+    mobile: 10000,  // 10 segundos
+    desktop: 30000  // 30 segundos
   }
 };
 
 // =================================
-// CONFIGURACIONES JWT
+// 🎨 CONFIGURACIÓN DE UI
 // =================================
 
-const JWT_CONFIG = {
-  ACCESS_TOKEN_EXPIRY: process.env.JWT_EXPIRES_IN || '24h',
-  REFRESH_TOKEN_EXPIRY: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  ISSUER: 'devai-agent',
-  AUDIENCE: 'devai-agent-client',
-  ALGORITHM: 'HS256'
-};
-
-// =================================
-// CONFIGURACIONES DE PAGINACIÓN
-// =================================
-
-const PAGINATION = {
-  DEFAULT_PAGE: 1,
-  DEFAULT_LIMIT: 20,
-  MAX_LIMIT: 100,
-  MIN_LIMIT: 1
-};
-
-// =================================
-// CONFIGURACIONES DE CACHE
-// =================================
-
-const CACHE_TTL = {
-  SHORT: 5 * 60, // 5 minutos
-  MEDIUM: 30 * 60, // 30 minutos
-  LONG: 2 * 60 * 60, // 2 horas
-  VERY_LONG: 24 * 60 * 60 // 24 horas
-};
-
-// Llaves de cache
-const CACHE_KEYS = {
-  USER_PROFILE: (userId) => `user:profile:${userId}`,
-  USER_CONVERSATIONS: (userId) => `user:conversations:${userId}`,
-  CONVERSATION_MESSAGES: (convId) => `conversation:messages:${convId}`,
-  AI_MODELS: (provider) => `ai:models:${provider}`,
-  ANALYTICS_DASHBOARD: (userId) => `analytics:dashboard:${userId}`,
-  FILE_METADATA: (fileId) => `file:metadata:${fileId}`
-};
-
-// =================================
-// PATRONES DE VALIDACIÓN
-// =================================
-
-const VALIDATION_PATTERNS = {
-  EMAIL: /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
-  UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-  USERNAME: /^[a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9]$/,
-  PHONE: /^\+?[1-9]\d{1,14}$/,
-  URL: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/,
-  HEX_COLOR: /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
-};
-
-// =================================
-// CONFIGURACIONES DE SEGURIDAD
-// =================================
-
-const SECURITY_CONFIG = {
-  // Configuración de bcrypt
-  BCRYPT_ROUNDS: 12,
+const UI_CONFIGS = {
+  theme: {
+    primary: '#3b82f6',
+    secondary: '#8b5cf6',
+    success: '#10b981',
+    warning: '#f59e0b',
+    error: '#ef4444',
+    background: '#0f172a',
+    surface: '#1e293b',
+    text: '#f8fafc'
+  },
   
-  // Longitudes mínimas
-  MIN_PASSWORD_LENGTH: 8,
-  MIN_USERNAME_LENGTH: 3,
+  breakpoints: {
+    mobile: 768,
+    tablet: 1024,
+    desktop: 1280,
+    wide: 1536
+  },
   
-  // Intentos máximos
-  MAX_LOGIN_ATTEMPTS: 5,
-  LOGIN_LOCK_TIME: 30 * 60 * 1000, // 30 minutos
+  animations: {
+    fast: 150,
+    normal: 300,
+    slow: 500
+  },
   
-  // Headers de seguridad
-  SECURITY_HEADERS: {
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https:"],
-        scriptSrc: ["'self'", "'unsafe-inline'"]
-      }
-    },
-    crossOriginEmbedderPolicy: false
+  limits: {
+    conversationTitle: 50,
+    messagePreview: 100,
+    maxConversations: 100,
+    maxMessagesPerConversation: 200
   }
 };
 
 // =================================
-// CONFIGURACIONES DE EMAIL
+// 🚀 CONFIGURACIÓN DE PERFORMANCE
 // =================================
 
-const EMAIL_TYPES = {
-  WELCOME: 'welcome',
-  PASSWORD_RESET: 'password_reset',
-  EMAIL_VERIFICATION: 'email_verification',
-  NOTIFICATION: 'notification',
-  WEEKLY_SUMMARY: 'weekly_summary'
-};
-
-const EMAIL_TEMPLATES = {
-  [EMAIL_TYPES.WELCOME]: {
-    subject: 'Welcome to DevAI Agent!',
-    template: 'welcome'
+const PERFORMANCE_CONFIGS = {
+  debounceDelay: 300,
+  throttleDelay: 100,
+  cacheTimeout: 5 * 60 * 1000, // 5 minutos
+  retryDelays: [1000, 2000, 4000], // Backoff exponencial
+  maxConcurrentRequests: 3,
+  
+  lazy: {
+    imageLoading: true,
+    componentLoading: true,
+    routeLoading: true
   },
-  [EMAIL_TYPES.PASSWORD_RESET]: {
-    subject: 'Reset your password',
-    template: 'password-reset'
-  },
-  [EMAIL_TYPES.EMAIL_VERIFICATION]: {
-    subject: 'Verify your email address',
-    template: 'email-verification'
+  
+  optimization: {
+    virtualScrolling: true,
+    memoization: true,
+    bundleSplitting: true,
+    compression: true
   }
 };
 
 // =================================
-// CONFIGURACIONES DE NOTIFICACIONES
+// 🔒 CONFIGURACIÓN DE SEGURIDAD
 // =================================
 
-const NOTIFICATION_TYPES = {
-  INFO: 'info',
-  SUCCESS: 'success',
-  WARNING: 'warning',
-  ERROR: 'error'
+const SECURITY_CONFIGS = {
+  maxRequestSize: 50 * 1024 * 1024, // 50MB
+  allowedDomains: [
+    'localhost',
+    '127.0.0.1',
+    process.env.REACT_APP_ALLOWED_DOMAIN
+  ].filter(Boolean),
+  
+  sanitization: {
+    enableHtmlSanitization: true,
+    allowedTags: ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li'],
+    stripScripts: true
+  },
+  
+  rateLimit: {
+    maxRequestsPerMinute: 60,
+    maxRequestsPerHour: 1000,
+    blockDuration: 15 * 60 * 1000 // 15 minutos
+  }
 };
 
 // =================================
-// MENSAJES DE ERROR COMUNES
+// 📊 CONFIGURACIÓN DE MÉTRICAS
 // =================================
 
-const ERROR_MESSAGES = {
-  // Autenticación
-  UNAUTHORIZED: 'Access denied. Please log in.',
-  INVALID_CREDENTIALS: 'Invalid email or password.',
-  TOKEN_EXPIRED: 'Token has expired. Please log in again.',
-  INVALID_TOKEN: 'Invalid token provided.',
+const METRICS_CONFIGS = {
+  enabled: process.env.NODE_ENV === 'production',
   
-  // Usuarios
-  USER_NOT_FOUND: 'User not found.',
-  USER_ALREADY_EXISTS: 'User already exists with this email.',
-  USER_INACTIVE: 'User account is inactive.',
+  tracking: {
+    apiCalls: true,
+    userInteractions: true,
+    performance: true,
+    errors: true
+  },
   
-  // Validación
-  VALIDATION_ERROR: 'Validation failed. Please check your input.',
-  REQUIRED_FIELD: 'This field is required.',
-  INVALID_FORMAT: 'Invalid format provided.',
-  
-  // Archivos
-  FILE_TOO_LARGE: 'File size exceeds maximum allowed size.',
-  FILE_TYPE_NOT_ALLOWED: 'File type not allowed.',
-  FILE_NOT_FOUND: 'File not found.',
-  
-  // General
-  INTERNAL_ERROR: 'An internal server error occurred.',
-  NOT_FOUND: 'Resource not found.',
-  RATE_LIMIT_EXCEEDED: 'Rate limit exceeded. Please try again later.',
-  MAINTENANCE_MODE: 'System is under maintenance. Please try again later.'
+  retention: {
+    errorLogs: 7 * 24 * 60 * 60 * 1000,    // 7 días
+    performanceLogs: 24 * 60 * 60 * 1000,  // 1 día
+    userLogs: 30 * 24 * 60 * 60 * 1000     // 30 días
+  }
 };
 
 // =================================
-// CONFIGURACIONES DEL SISTEMA
+// 🌍 CONFIGURACIÓN DE LOCALIZACIÓN
 // =================================
 
-const SYSTEM_CONFIG = {
-  // Configuraciones de tiempo
-  TIMEZONE: process.env.TZ || 'UTC',
-  DATE_FORMAT: 'YYYY-MM-DD',
-  DATETIME_FORMAT: 'YYYY-MM-DD HH:mm:ss',
+const LOCALE_CONFIGS = {
+  defaultLocale: 'es-AR',
+  supportedLocales: ['es-AR', 'es-ES', 'en-US', 'pt-BR'],
   
-  // Configuraciones de desarrollo
-  IS_DEVELOPMENT: process.env.NODE_ENV === 'development',
-  IS_PRODUCTION: process.env.NODE_ENV === 'production',
-  IS_TEST: process.env.NODE_ENV === 'test',
+  dateFormat: {
+    'es-AR': 'dd/MM/yyyy',
+    'es-ES': 'dd/MM/yyyy', 
+    'en-US': 'MM/dd/yyyy',
+    'pt-BR': 'dd/MM/yyyy'
+  },
   
-  // URLs
-  BASE_URL: process.env.BASE_URL || 'http://localhost:3001',
-  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
-  
-  // Configuraciones de servidor
-  DEFAULT_PORT: 3001,
-  DEFAULT_HOST: '0.0.0.0'
+  timeFormat: {
+    'es-AR': 'HH:mm',
+    'es-ES': 'HH:mm',
+    'en-US': 'hh:mm a',
+    'pt-BR': 'HH:mm'
+  }
 };
 
 // =================================
-// EXPORTAR CONSTANTES
+// 🔧 CONFIGURACIÓN DE DESARROLLO
+// =================================
+
+const DEV_CONFIGS = {
+  enableDebugLogs: process.env.NODE_ENV === 'development',
+  enableDevTools: process.env.NODE_ENV === 'development',
+  mockApis: process.env.REACT_APP_MOCK_APIS === 'true',
+  
+  features: {
+    hotReload: process.env.NODE_ENV === 'development',
+    sourceMap: process.env.NODE_ENV === 'development',
+    profiling: process.env.REACT_APP_ENABLE_PROFILING === 'true'
+  },
+  
+  debugging: {
+    showAPIResponses: process.env.REACT_APP_DEBUG_API === 'true',
+    showStateChanges: process.env.REACT_APP_DEBUG_STATE === 'true',
+    showRenderTimes: process.env.REACT_APP_DEBUG_RENDER === 'true'
+  }
+};
+
+// =================================
+// 📦 CONFIGURACIÓN DE STORAGE
+// =================================
+
+const STORAGE_CONFIGS = {
+  prefix: 'devai_',
+  
+  keys: {
+    conversations: 'conversations',
+    settings: 'settings',
+    apiKeys: 'api_keys',
+    userPreferences: 'user_prefs',
+    cache: 'cache'
+  },
+  
+  limits: {
+    maxConversations: 100,
+    maxCacheSize: 10 * 1024 * 1024, // 10MB
+    maxSettingsSize: 1024 * 1024     // 1MB
+  },
+  
+  encryption: {
+    enabled: true,
+    algorithm: 'AES-256-GCM',
+    saltLength: 32
+  }
+};
+
+// =================================
+// 📡 URLS Y ENDPOINTS
+// =================================
+
+const API_ENDPOINTS = {
+  // Backend endpoints
+  health: '/health',
+  chat: '/api/ai/chat',
+  upload: '/api/files/upload',
+  analyze: '/api/files/analyze',
+  conversations: '/api/conversations',
+  settings: '/api/settings',
+  
+  // Servicios externos
+  gemini: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+  groq: 'https://api.groq.com/openai/v1/chat/completions',
+  huggingface: (model) => `https://api-inference.huggingface.co/models/${model}`,
+  ollama: {
+    chat: 'http://localhost:11434/api/chat',
+    models: 'http://localhost:11434/api/tags',
+    generate: 'http://localhost:11434/api/generate'
+  }
+};
+
+// =================================
+// 🎯 CONFIGURACIÓN DE FEATURES
+// =================================
+
+const FEATURE_FLAGS = {
+  // Core features
+  chatEnabled: true,
+  fileUploadEnabled: true,
+  conversationsEnabled: true,
+  settingsEnabled: true,
+  
+  // Advanced features
+  livePreviewEnabled: !process.env.REACT_APP_IS_MOBILE,
+  multiProviderEnabled: true,
+  backendIntegrationEnabled: true,
+  offlineModeEnabled: false,
+  
+  // Experimental features
+  voiceInputEnabled: false,
+  imageAnalysisEnabled: false,
+  collaborationEnabled: false,
+  pluginSystemEnabled: false,
+  
+  // Beta features
+  advancedAnalysisEnabled: process.env.REACT_APP_ENABLE_ADVANCED_ANALYSIS === 'true',
+  codeExecutionEnabled: process.env.REACT_APP_ENABLE_CODE_EXECUTION === 'true',
+  aiAssistantEnabled: process.env.REACT_APP_ENABLE_AI_ASSISTANT === 'true'
+};
+
+// =================================
+// 🎲 CONSTANTES DE FALLBACK
+// =================================
+
+const FALLBACK_RESPONSES = {
+  connection_error: "❌ **Error de conexión**\n\nNo se pudo conectar con el servicio de IA. Verifica tu conexión a internet e intenta nuevamente.",
+  
+  api_key_missing: "🔑 **API Key requerida**\n\nNecesitas configurar una API Key válida en la configuración para usar este proveedor.",
+  
+  rate_limit: "⏱️ **Límite de uso alcanzado**\n\nHas alcanzado el límite de consultas. Espera unos minutos antes de intentar nuevamente.",
+  
+  invalid_request: "⚠️ **Solicitud inválida**\n\nHay un problema con tu solicitud. Verifica el formato e intenta nuevamente.",
+  
+  service_unavailable: "🚧 **Servicio no disponible**\n\nEl servicio de IA está temporalmente no disponible. Intenta con otro proveedor.",
+  
+  generic_error: "💥 **Error inesperado**\n\nOcurrió un error inesperado. Intenta nuevamente o contacta soporte si el problema persiste."
+};
+
+// =================================
+// 📝 PLANTILLAS DE MENSAJES
+// =================================
+
+const MESSAGE_TEMPLATES = {
+  welcome: {
+    title: "¡Bienvenido a DevAI Agent! 🚀",
+    subtitle: "Tu asistente inteligente para desarrollo de software",
+    features: [
+      "Análisis de código inteligente",
+      "Generación de ejemplos funcionales", 
+      "Debug y optimización",
+      "Soporte múltiples lenguajes",
+      "Preview en tiempo real"
+    ]
+  },
+  
+  setup: {
+    title: "Configuración inicial ⚙️",
+    description: "Para comenzar, necesitas configurar al menos un proveedor de IA.",
+    steps: [
+      "Selecciona tu proveedor preferido",
+      "Ingresa tu API Key",
+      "Verifica la conexión",
+      "¡Comienza a chatear!"
+    ]
+  },
+  
+  project_loaded: {
+    title: "Proyecto cargado exitosamente ✅",
+    template: "📁 **{projectName}**\n📊 {fileCount} archivos procesados\n💾 {totalSize} total\n\n🧠 **Contexto disponible para consultas**\n{fileList}\n\n💡 *Ahora puedes preguntarme sobre tu código!*"
+  },
+  
+  error_generic: {
+    title: "Error inesperado ❌",
+    template: "Ha ocurrido un error inesperado: {error}\n\n💡 *Intenta nuevamente o contacta soporte si persiste.*"
+  }
+};
+
+// =================================
+// 🎯 CONFIGURACIÓN POR DEFECTO
+// =================================
+
+const DEFAULT_SETTINGS = {
+  provider: DEFAULT_PROVIDER,
+  model: DEFAULT_MODEL,
+  theme: 'dark',
+  language: 'es',
+  autoSave: true,
+  notifications: true,
+  compactMode: false,
+  showTimestamps: true,
+  enableSounds: false,
+  maxTokens: 4000,
+  temperature: 0.7
+};
+
+// =================================
+// 🔍 EXPRESIONES REGULARES
+// =================================
+
+const REGEX_PATTERNS = {
+  email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  url: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/,
+  apiKey: /^[a-zA-Z0-9_-]{20,}$/,
+  hexColor: /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/,
+  semver: /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+};
+
+// =================================
+// 🌐 CONFIGURACIÓN DE URLS
+// =================================
+
+const EXTERNAL_URLS = {
+  documentation: 'https://docs.devai-agent.com',
+  github: 'https://github.com/devai-agent/frontend',
+  issues: 'https://github.com/devai-agent/frontend/issues',
+  changelog: 'https://github.com/devai-agent/frontend/releases',
+  support: 'https://support.devai-agent.com',
+  
+  // APIs externas
+  geminiDocs: 'https://ai.google.dev/docs',
+  groqDocs: 'https://console.groq.com/docs',
+  huggingfaceDocs: 'https://huggingface.co/docs/api-inference',
+  ollamaDocs: 'https://github.com/ollama/ollama'
+};
+
+// =================================
+// 🎨 CONFIGURACIÓN DE TEMAS
+// =================================
+
+const THEME_CONFIG = {
+  dark: {
+    name: 'Oscuro',
+    colors: {
+      primary: '#3b82f6',
+      secondary: '#8b5cf6',
+      background: '#0f172a',
+      surface: '#1e293b',
+      text: '#f8fafc',
+      textSecondary: '#94a3b8',
+      border: '#334155',
+      success: '#10b981',
+      warning: '#f59e0b',
+      error: '#ef4444',
+      accent: '#06b6d4'
+    }
+  },
+  light: {
+    name: 'Claro',
+    colors: {
+      primary: '#3b82f6',
+      secondary: '#8b5cf6',
+      background: '#ffffff',
+      surface: '#f8fafc',
+      text: '#1e293b',
+      textSecondary: '#64748b',
+      border: '#e2e8f0',
+      success: '#10b981',
+      warning: '#f59e0b',
+      error: '#ef4444',
+      accent: '#06b6d4'
+    }
+  }
+};
+
+// =================================
+// EXPORTACIONES
 // =================================
 
 module.exports = {
-  APP_INFO,
-  HTTP_STATUS,
-  USER_ROLES,
-  ROLE_HIERARCHY,
-  AI_PROVIDERS,
-  AI_PROVIDER_CONFIG,
-  FILE_TYPES,
-  ALLOWED_FILE_EXTENSIONS,
-  MAX_FILE_SIZES,
-  MESSAGE_TYPES,
-  CONVERSATION_STATUS,
-  PROJECT_STATUS,
-  LOG_LEVELS,
-  RATE_LIMITS,
-  JWT_CONFIG,
-  PAGINATION,
-  CACHE_TTL,
-  CACHE_KEYS,
-  VALIDATION_PATTERNS,
-  SECURITY_CONFIG,
-  EMAIL_TYPES,
-  EMAIL_TEMPLATES,
-  NOTIFICATION_TYPES,
-  ERROR_MESSAGES,
-  SYSTEM_CONFIG
+  // Configuración principal
+  API_KEYS,
+  DEFAULT_PROVIDER,
+  DEFAULT_MODEL,
+  BACKEND_CONFIG,
+  
+  // Configuración por dispositivo
+  DEVICE_CONFIGS,
+  
+  // Archivos
+  FILE_CONFIGS,
+  
+  // UI
+  UI_CONFIGS,
+  THEME_CONFIG,
+  
+  // Performance
+  PERFORMANCE_CONFIGS,
+  
+  // Seguridad
+  SECURITY_CONFIGS,
+  
+  // Métricas
+  METRICS_CONFIGS,
+  
+  // Localización
+  LOCALE_CONFIGS,
+  
+  // Desarrollo
+  DEV_CONFIGS,
+  
+  // Storage
+  STORAGE_CONFIGS,
+  
+  // APIs
+  API_ENDPOINTS,
+  EXTERNAL_URLS,
+  
+  // Features
+  FEATURE_FLAGS,
+  
+  // Fallbacks
+  FALLBACK_RESPONSES,
+  
+  // Templates
+  MESSAGE_TEMPLATES,
+  
+  // Configuración por defecto
+  DEFAULT_SETTINGS,
+  
+  // Patrones
+  REGEX_PATTERNS
 };
