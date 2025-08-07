@@ -2,10 +2,7 @@
 // 🗄️ DATABASE CONFIGURATION
 // ============================================
 
-import { PrismaClient } from '@prisma/client';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
+const { PrismaClient } = require('@prisma/client');
 
 /**
  * 🔧 Configuración de Prisma Client
@@ -46,7 +43,7 @@ if (process.env.NODE_ENV === 'production') {
 /**
  * 🔗 Conectar a la base de datos
  */
-export const connectDatabase = async () => {
+const connectDatabase = async () => {
   try {
     console.log('🔗 Conectando a la base de datos...');
     
@@ -71,7 +68,7 @@ export const connectDatabase = async () => {
 /**
  * 🚫 Desconectar de la base de datos
  */
-export const disconnectDatabase = async () => {
+const disconnectDatabase = async () => {
   try {
     await prisma.$disconnect();
     console.log('👋 Base de datos desconectada');
@@ -83,7 +80,7 @@ export const disconnectDatabase = async () => {
 /**
  * 🏥 Verificar estado de salud de la base de datos
  */
-export const checkDatabaseHealth = async () => {
+const checkDatabaseHealth = async () => {
   try {
     const startTime = Date.now();
     
@@ -111,7 +108,7 @@ export const checkDatabaseHealth = async () => {
 /**
  * 📊 Obtener estadísticas de la base de datos
  */
-export const getDatabaseStats = async () => {
+const getDatabaseStats = async () => {
   try {
     const [
       userCount,
@@ -173,7 +170,7 @@ const setupDatabaseEvents = () => {
 /**
  * 🧪 Utilidades para testing
  */
-export const resetTestDatabase = async () => {
+const resetTestDatabase = async () => {
   if (process.env.NODE_ENV !== 'test') {
     throw new Error('resetTestDatabase solo puede usarse en entorno de test');
   }
@@ -204,7 +201,7 @@ export const resetTestDatabase = async () => {
 /**
  * 🔍 Ejecutar migraciones
  */
-export const runMigrations = async () => {
+const runMigrations = async () => {
   try {
     console.log('🔄 Ejecutando migraciones...');
     
@@ -222,7 +219,7 @@ export const runMigrations = async () => {
 /**
  * 📈 Middleware para métricas de base de datos
  */
-export const databaseMetricsMiddleware = () => {
+const databaseMetricsMiddleware = () => {
   let queryCount = 0;
   let totalQueryTime = 0;
 
@@ -270,7 +267,7 @@ export const databaseMetricsMiddleware = () => {
 /**
  * 🔒 Configuración de transacciones
  */
-export const withTransaction = async (callback) => {
+const withTransaction = async (callback) => {
   return await prisma.$transaction(callback, {
     maxWait: 5000, // 5 segundos máximo de espera
     timeout: 10000, // 10 segundos timeout
@@ -278,6 +275,18 @@ export const withTransaction = async (callback) => {
   });
 };
 
-// Exportar instancia de Prisma
-export { prisma };
-export default prisma;
+// Exportar todo usando CommonJS
+module.exports = {
+  prisma,
+  connectDatabase,
+  disconnectDatabase,
+  checkDatabaseHealth,
+  getDatabaseStats,
+  resetTestDatabase,
+  runMigrations,
+  databaseMetricsMiddleware,
+  withTransaction
+};
+
+// Exportar prisma como default también
+module.exports.default = prisma;

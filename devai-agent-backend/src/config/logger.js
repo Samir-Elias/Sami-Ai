@@ -2,12 +2,8 @@
 // 📊 LOGGER CONFIGURATION WITH WINSTON
 // ============================================
 
-import winston from 'winston';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const winston = require('winston');
+const path = require('path');
 
 /**
  * 🎨 Formatters personalizados
@@ -67,9 +63,7 @@ const transports = [];
 transports.push(
   new winston.transports.Console({
     level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
-    format: consoleFormat,
-    handleExceptions: true,
-    handleRejections: true
+    format: consoleFormat
   })
 );
 
@@ -84,8 +78,7 @@ if (process.env.NODE_ENV === 'production' || process.env.LOG_FILE) {
       level: 'info',
       format: customFormat,
       maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      handleExceptions: true
+      maxFiles: 5
     })
   );
   
@@ -96,9 +89,7 @@ if (process.env.NODE_ENV === 'production' || process.env.LOG_FILE) {
       level: 'error',
       format: customFormat,
       maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      handleExceptions: true,
-      handleRejections: true
+      maxFiles: 5
     })
   );
   
@@ -129,19 +120,6 @@ const logger = winston.createLogger({
   },
   transports,
   
-  // Configuración de excepciones
-  exceptionHandlers: [
-    new winston.transports.Console({
-      format: winston.format.simple()
-    })
-  ],
-  
-  rejectionHandlers: [
-    new winston.transports.Console({
-      format: winston.format.simple()
-    })
-  ],
-  
   // No salir en errores no manejados
   exitOnError: false
 });
@@ -149,7 +127,7 @@ const logger = winston.createLogger({
 /**
  * 🎯 Logger específico para requests HTTP
  */
-export const httpLogger = winston.createLogger({
+const httpLogger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
@@ -170,7 +148,7 @@ export const httpLogger = winston.createLogger({
 /**
  * 🤖 Logger específico para IA
  */
-export const aiLogger = winston.createLogger({
+const aiLogger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
@@ -200,7 +178,7 @@ export const aiLogger = winston.createLogger({
 /**
  * 🔒 Logger de seguridad
  */
-export const securityLogger = winston.createLogger({
+const securityLogger = winston.createLogger({
   level: 'warn',
   format: winston.format.combine(
     winston.format.timestamp(),
@@ -230,7 +208,7 @@ export const securityLogger = winston.createLogger({
 /**
  * 📊 Logger de métricas/analytics
  */
-export const metricsLogger = winston.createLogger({
+const metricsLogger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
@@ -259,7 +237,7 @@ export const metricsLogger = winston.createLogger({
 /**
  * 🎭 Funciones de conveniencia
  */
-export const log = {
+const log = {
   // Niveles estándar
   error: (message, meta = {}) => logger.error(message, meta),
   warn: (message, meta = {}) => logger.warn(message, meta),
@@ -317,7 +295,7 @@ export const log = {
 /**
  * 🔧 Middleware de logging para Express
  */
-export const loggingMiddleware = () => {
+const loggingMiddleware = () => {
   return (req, res, next) => {
     const startTime = Date.now();
     
@@ -360,7 +338,7 @@ export const loggingMiddleware = () => {
 /**
  * 🚨 Middleware de manejo de errores
  */
-export const errorLoggingMiddleware = () => {
+const errorLoggingMiddleware = () => {
   return (error, req, res, next) => {
     const errorId = Date.now().toString(36) + Math.random().toString(36).substr(2);
     
@@ -402,5 +380,32 @@ if (process.env.NODE_ENV === 'test') {
   metricsLogger.silent = true;
 }
 
-// Exportar logger principal
-export default logger;
+// Exportar todo usando CommonJS
+module.exports = {
+  // Logger principal
+  default: logger,
+  logger,
+  
+  // Loggers específicos
+  httpLogger,
+  aiLogger,
+  securityLogger,
+  metricsLogger,
+  
+  // Funciones de conveniencia
+  log,
+  
+  // Middlewares
+  loggingMiddleware,
+  errorLoggingMiddleware
+};
+
+// Hacer que el logger principal sea accesible como default export también
+module.exports = logger;
+module.exports.httpLogger = httpLogger;
+module.exports.aiLogger = aiLogger;
+module.exports.securityLogger = securityLogger;
+module.exports.metricsLogger = metricsLogger;
+module.exports.log = log;
+module.exports.loggingMiddleware = loggingMiddleware;
+module.exports.errorLoggingMiddleware = errorLoggingMiddleware;

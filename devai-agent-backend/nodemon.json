@@ -18,7 +18,7 @@
   "delay": 1000,
   "verbose": true,
   "events": {
-    "start": "clear && echo '🚀 DevAI Backend iniciando...'",
+    "start": "echo 🚀 DevAI Backend iniciando...",
     "restart": "echo '🔄 Reiniciando servidor...'",
     "crash": "echo '💥 Servidor crasheó, reiniciando...'",
     "exit": "echo '👋 DevAI Backend detenido'"

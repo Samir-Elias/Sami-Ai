@@ -4,7 +4,8 @@
 
 import { Prisma } from '@prisma/client';
 import { MulterError } from 'multer';
-import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
+const { JsonWebTokenError, TokenExpiredError } = jwt;
 import { log } from '../config/logger.js';
 import { prisma } from '../config/database.js';
 

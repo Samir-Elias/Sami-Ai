@@ -1,13 +1,4 @@
-# ============================================
-# 🐳 DEVAI AGENT - DOCKER COMPOSE DESARROLLO
-# ============================================
-
-version: '3.8'
-
 services:
-  # ============================================
-  # 🐘 PostgreSQL Database
-  # ============================================
   postgres:
     image: postgres:15-alpine
     container_name: devai_postgres
@@ -15,127 +6,33 @@ services:
     environment:
       POSTGRES_DB: devai_db
       POSTGRES_USER: devai_user
-      POSTGRES_PASSWORD: devai_password
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+      POSTGRES_PASSWORD: K8mP9xQ2wE7vR5nT
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - devai_network
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U devai_user -d devai_db"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # ============================================
-  # 🔴 Redis Cache
-  # ============================================
   redis:
     image: redis:7-alpine
     container_name: devai_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass redis_password
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    networks:
-      - devai_network
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # ============================================
-  # 📊 PostgreSQL Admin (pgAdmin)
-  # ============================================
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: devai_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@devai.local
-      PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-    ports:
-      - "8080:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - devai_network
-    depends_on:
-      - postgres
-
-  # ============================================
-  # 📈 Redis Commander (Redis Admin)
-  # ============================================
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: devai_redis_commander
-    restart: unless-stopped
-    environment:
-      REDIS_HOSTS: local:redis:6379:0:redis_password
-      HTTP_USER: admin
-      HTTP_PASSWORD: admin123
-    ports:
-      - "8081:8081"
-    networks:
-      - devai_network
-    depends_on:
-      - redis
-
-  # ============================================
-  # 🔧 DevAI Backend (opcional)
-  # ============================================
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: devai_backend
-    restart: unless-stopped
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://devai_user:devai_password@postgres:5432/devai_db
-      REDIS_URL: redis://:redis_password@redis:6379
-      JWT_SECRET: dev-jwt-secret-change-in-production
-      FRONTEND_URL: http://localhost:3000
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./src:/app/src
-      - ./storage:/app/storage
-      - /app/node_modules
-    networks:
-      - devai_network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: npm run dev
-
-# ============================================
-# 📁 Volúmenes Persistentes
-# ============================================
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
-  pgadmin_data:
-    driver: local
-
-# ============================================
-# 🌐 Red
-# ============================================
-networks:
-  devai_network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
