@@ -20,7 +20,7 @@ import {
   RefreshCw,
   AlertCircle
 } from 'lucide-react';
-import { useApp, useBackendStatus, useAPI } from '../../context/AppContext';
+import { useApp, useBackendStatus, useAPI } from '../../context/Appcontext';
 
 /**
  * Componente Sidebar para navegación y conversaciones con API Context

@@ -5,7 +5,7 @@
 import React from 'react';
 import { Eye, X, ExternalLink, Monitor, Smartphone, Zap, CheckCircle, AlertTriangle, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { API_LIMITS, FREE_AI_MODELS } from '../../utils/constants';
-import { useApp, useBackendStatus, useAPI } from '../../context/AppContext';
+import { useApp, useBackendStatus, useAPI } from '../../context/Appcontext';
 
 /**
  * Panel de configuración con API Context integrado

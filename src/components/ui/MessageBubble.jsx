@@ -18,7 +18,7 @@ import {
   WifiOff
 } from 'lucide-react';
 import { renderMessageContent } from '../../utils/messageRenderer';
-import { useApp, useBackendStatus } from '../../context/AppContext';
+import { useApp, useBackendStatus } from '../../context/Appcontext';
 
 /**
  * Componente de burbuja de mensaje reutilizable

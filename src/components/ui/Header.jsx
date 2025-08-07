@@ -6,7 +6,7 @@ import React from 'react';
 import { Menu, Settings, Sparkles, Eye, EyeOff, FolderOpen } from 'lucide-react';
 import { API_LIMITS } from '../../utils/constants';
 // 🔥 NUEVAS IMPORTACIONES - Integración con contexto global
-import { useApp, useBackendStatus, useAPI } from '../../context/AppContext';
+import { useApp, useBackendStatus, useAPI } from '../../context/Appcontext';
 
 /**
  * Componente Header responsivo con integración de API Context

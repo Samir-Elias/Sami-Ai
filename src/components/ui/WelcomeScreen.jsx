@@ -18,7 +18,7 @@ import {
   CheckCircle,
   Database
 } from 'lucide-react';
-import { useApp, useBackendStatus, useAPI } from '../../context/AppContext';
+import { useApp, useBackendStatus, useAPI } from '../../context/Appcontext';
 
 /**
  * Pantalla de bienvenida con API Context integrado

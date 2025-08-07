@@ -1,6 +1,6 @@
 // src/App.js
 import React from 'react';
-import { AppProvider } from './context/AppContext';
+import { AppProvider } from './context/Appcontext.jsx';
 
 // Importa tus componentes existentes
 import Header from './components/ui/Header';
@@ -34,8 +34,8 @@ const ChatInterface = () => {
   const [message, setMessage] = React.useState('');
   
   // 🔥 Ahora cualquier componente puede usar estos hooks:
-  const { api, isLoading, error } = require('./context/AppContext').useAPI();
-  const { text: connectionText, canUseAPI } = require('./context/AppContext').useBackendStatus();
+  const { api, isLoading, error } = require('./context/Appcontext').useAPI();
+  const { text: connectionText, canUseAPI } = require('./context/Appcontext').useBackendStatus();
 
   const handleSendMessage = async (userMessage) => {
     if (!userMessage.trim() || !canUseAPI) return;
