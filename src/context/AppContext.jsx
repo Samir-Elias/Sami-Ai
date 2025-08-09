@@ -49,6 +49,104 @@ export const AppProvider = ({ children }) => {
   const [offlineMode, setOfflineMode] = useState(false);
 
   // ============================================
+  // ⚙️ FUNCIONES DE CONFIGURACIÓN (MOVIDAS ARRIBA)
+  // ============================================
+
+  const settings = {
+    setProvider: (provider) => {
+      console.log('🔄 Cambiando proveedor a:', provider);
+      setCurrentProvider(provider);
+      localStorage.setItem('devai_provider', provider);
+    },
+    
+    setModel: (model) => {
+      console.log('🧠 Cambiando modelo a:', model);
+      setCurrentModel(model);
+      localStorage.setItem('devai_model', model);
+    },
+    
+    setProject: (project) => {
+      setCurrentProject(project);
+      localStorage.setItem('devai_project', project);
+    },
+    
+    // ✅ Configurar API keys
+    setApiKey: (provider, apiKey) => {
+      console.log(`🔑 Configurando API Key para ${provider.toUpperCase()}`);
+      localStorage.setItem(`api_key_${provider}`, apiKey);
+      
+      // Limpiar errores previos al configurar nueva key
+      setError(null);
+    },
+
+    // ✅ MÉTODO CORREGIDO - Obtener API key desde environment variables PRIMERO
+    getApiKey: (provider) => {
+      // 1. Intentar desde variables de entorno de Vercel PRIMERO
+      const envKey = process.env[`REACT_APP_${provider.toUpperCase()}_API_KEY`];
+      if (envKey && envKey !== 'tu_key_aqui' && envKey.length > 10) {
+        console.log(`🔑 API Key para ${provider} encontrada en environment variables`);
+        return envKey;
+      }
+
+      // 2. Fallback a localStorage (configuración manual del usuario)
+      const localKey = localStorage.getItem(`api_key_${provider}`);
+      if (localKey && localKey !== 'tu_key_aqui' && localKey.length > 10) {
+        console.log(`🔑 API Key para ${provider} encontrada en localStorage`);
+        return localKey;
+      }
+
+      console.warn(`⚠️ No se encontró API Key válida para ${provider}`);
+      return '';
+    },
+
+    // ✅ MÉTODO CORREGIDO - Verificar si provider está configurado desde environment variables
+    isProviderConfigured: (provider) => {
+      if (provider === 'ollama') return true; // No necesita API key
+      
+      // Verificar environment variables primero
+      const envKey = process.env[`REACT_APP_${provider.toUpperCase()}_API_KEY`];
+      if (envKey && envKey !== 'tu_key_aqui' && envKey.length > 10) {
+        return true;
+      }
+
+      // Verificar localStorage como fallback
+      const localKey = localStorage.getItem(`api_key_${provider}`);
+      return !!(localKey && localKey !== 'tu_key_aqui' && localKey.length > 10);
+    },
+
+    // ✅ NUEVO MÉTODO - Inicializar API keys desde environment variables
+    initializeFromEnvironment: () => {
+      const providers = ['gemini', 'groq', 'huggingface'];
+      
+      providers.forEach(provider => {
+        const envKey = process.env[`REACT_APP_${provider.toUpperCase()}_API_KEY`];
+        if (envKey && envKey !== 'tu_key_aqui' && envKey.length > 10) {
+          // Solo actualizar localStorage si no existe o es placeholder
+          const existingKey = localStorage.getItem(`api_key_${provider}`);
+          if (!existingKey || existingKey === 'tu_key_aqui' || existingKey.length < 10) {
+            localStorage.setItem(`api_key_${provider}`, envKey);
+            console.log(`✅ API Key para ${provider} inicializada desde environment variables`);
+          }
+        }
+      });
+
+      // Configurar proveedor por defecto desde environment variables
+      const defaultProvider = process.env.REACT_APP_DEFAULT_PROVIDER;
+      if (defaultProvider && !localStorage.getItem('devai_provider')) {
+        setCurrentProvider(defaultProvider);
+        localStorage.setItem('devai_provider', defaultProvider);
+      }
+
+      // Configurar modelo por defecto
+      const defaultModel = process.env.REACT_APP_DEFAULT_MODEL;
+      if (defaultModel && !localStorage.getItem('devai_model')) {
+        setCurrentModel(defaultModel);
+        localStorage.setItem('devai_model', defaultModel);
+      }
+    }
+  };
+
+  // ============================================
   // 🔧 FUNCIÓN PRINCIPAL DE API (ÚNICA)
   // ============================================
 
@@ -132,8 +230,8 @@ export const AppProvider = ({ children }) => {
       // Importación dinámica del factory
       const { callFreeAIAPI } = await import('../services/api/aiServiceFactory');
       
-      // Obtener API key actual
-      const apiKey = localStorage.getItem(`api_key_${provider}`) || '';
+      // ✅ LÍNEA CORREGIDA - Usar settings.getApiKey que lee de environment variables
+      const apiKey = settings.getApiKey(provider);
       
       // Validar API key (excepto para Ollama)
       if (!apiKey && provider !== 'ollama') {
@@ -191,6 +289,15 @@ Una vez solucionado el problema, puedes repetir tu pregunta y obtendré una resp
   // ============================================
 
   const checkBackendConnection = useCallback(async () => {
+    // ✅ FORZAR MODO OFFLINE EN PRODUCCIÓN si está configurado
+    if (process.env.REACT_APP_FORCE_OFFLINE === 'true') {
+      setIsBackendConnected(false);
+      setConnectionStatus('disconnected');
+      setOfflineMode(true);
+      console.log('🟡 Modo API directa forzado por REACT_APP_FORCE_OFFLINE');
+      return false;
+    }
+
     setConnectionStatus('checking');
     setError(null);
     
@@ -391,50 +498,6 @@ Una vez solucionado el problema, puedes repetir tu pregunta y obtendré una resp
   };
 
   // ============================================
-  // ⚙️ FUNCIONES DE CONFIGURACIÓN
-  // ============================================
-
-  const settings = {
-    setProvider: (provider) => {
-      console.log('🔄 Cambiando proveedor a:', provider);
-      setCurrentProvider(provider);
-      localStorage.setItem('devai_provider', provider);
-    },
-    
-    setModel: (model) => {
-      console.log('🧠 Cambiando modelo a:', model);
-      setCurrentModel(model);
-      localStorage.setItem('devai_model', model);
-    },
-    
-    setProject: (project) => {
-      setCurrentProject(project);
-      localStorage.setItem('devai_project', project);
-    },
-    
-    // ✅ Configurar API keys
-    setApiKey: (provider, apiKey) => {
-      console.log(`🔑 Configurando API Key para ${provider.toUpperCase()}`);
-      localStorage.setItem(`api_key_${provider}`, apiKey);
-      
-      // Limpiar errores previos al configurar nueva key
-      setError(null);
-    },
-
-    // ✅ Obtener API key actual
-    getApiKey: (provider) => {
-      return localStorage.getItem(`api_key_${provider}`) || '';
-    },
-
-    // ✅ Verificar si provider está configurado
-    isProviderConfigured: (provider) => {
-      if (provider === 'ollama') return true; // No necesita API key
-      const apiKey = localStorage.getItem(`api_key_${provider}`);
-      return !!apiKey && apiKey.length > 10;
-    }
-  };
-
-  // ============================================
   // 📊 ESTADO COMPUTADO
   // ============================================
 
@@ -524,6 +587,34 @@ Una vez solucionado el problema, puedes repetir tu pregunta y obtendré una resp
   // ============================================
   // 🚀 EFECTOS
   // ============================================
+
+  // ✅ NUEVO EFECTO - Inicializar desde environment variables al cargar
+  useEffect(() => {
+    console.log('🔍 Environment Variables Debug:', {
+      REACT_APP_GEMINI_API_KEY: process.env.REACT_APP_GEMINI_API_KEY ? '✅ Configurada' : '❌ Faltante',
+      REACT_APP_GROQ_API_KEY: process.env.REACT_APP_GROQ_API_KEY ? '✅ Configurada' : '❌ Faltante',
+      REACT_APP_HUGGINGFACE_API_KEY: process.env.REACT_APP_HUGGINGFACE_API_KEY ? '✅ Configurada' : '❌ Faltante',
+      REACT_APP_FORCE_OFFLINE: process.env.REACT_APP_FORCE_OFFLINE,
+      REACT_APP_DEFAULT_PROVIDER: process.env.REACT_APP_DEFAULT_PROVIDER,
+      currentProvider
+    });
+
+    // Inicializar desde environment variables
+    settings.initializeFromEnvironment();
+    
+    // Verificar qué proveedores están configurados
+    const configuredProviders = ['gemini', 'groq', 'huggingface']
+      .filter(provider => settings.isProviderConfigured(provider));
+    
+    console.log('🔧 Proveedores configurados:', configuredProviders);
+    
+    // Si el proveedor actual no está configurado, cambiar al primero disponible
+    if (configuredProviders.length > 0 && !settings.isProviderConfigured(currentProvider)) {
+      console.log(`🔄 Cambiando de ${currentProvider} a ${configuredProviders[0]}`);
+      setCurrentProvider(configuredProviders[0]);
+      localStorage.setItem('devai_provider', configuredProviders[0]);
+    }
+  }, []);
 
   // Cargar configuración guardada al iniciar
   useEffect(() => {
