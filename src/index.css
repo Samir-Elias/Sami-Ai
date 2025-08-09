@@ -662,203 +662,319 @@ body[data-env="development"] .dev-only {
 .justify-start { justify-content: flex-start; }
 .justify-end { justify-content: flex-end; }
 .justify-between { justify-content: space-between; }
+
 /* ============================================ */
-/* 🎨 ANIMACIONES CORREGIDAS - SIN TEXTO ANIMADO */
+/* 🎨 BARRA ANIMADA MORADA-CELESTE - SOLUCIÓN CORRECTA */
 /* ============================================ */
 
-/* ✅ ANIMACIÓN DE BARRA MORADA - En la parte superior del header */
-@keyframes progressBarFill {
+/* 1️⃣ CONTENEDOR PRINCIPAL DEL HEADER - SIN ANIMACIÓN DIRECTA */
+.header-with-animated-bar {
+  position: relative;
+  overflow: hidden; /* Importante para contener la barra */
+}
+
+/* 2️⃣ BARRA ANIMADA USANDO PSEUDO-ELEMENTO */
+.header-with-animated-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px; /* Altura de la barra */
+  background: linear-gradient(
+    90deg,
+    #7c3aed 0%,      /* Morado */
+    #3b82f6 25%,     /* Azul */
+    #7c3aed 50%,     /* Morado */
+    #3b82f6 75%,     /* Azul */
+    #7c3aed 100%     /* Morado */
+  );
+  background-size: 200% 100%; /* Doble ancho para animación */
+  animation: slideGradient 4s linear infinite;
+  z-index: 100; /* Asegurar que esté encima */
+  pointer-events: none; /* No interferir con clicks */
+}
+
+/* 3️⃣ ANIMACIÓN DEL GRADIENTE */
+@keyframes slideGradient {
   0% {
-    transform: scaleX(0);
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%; /* Mueve el gradiente */
+  }
+}
+
+/* 4️⃣ VERSIÓN ALTERNATIVA CON EFECTO GLOW */
+.header-with-glow-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #7c3aed 20%,
+    #3b82f6 50%,
+    #7c3aed 80%,
+    transparent 100%
+  );
+  animation: sweepBar 3s ease-in-out infinite;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.8);
+}
+
+@keyframes sweepBar {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* 5️⃣ VERSIÓN CON PULSO */
+.header-with-pulse-bar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #7c3aed, #3b82f6);
+  animation: pulseWidth 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes pulseWidth {
+  0%, 100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleX(0.95);
     opacity: 0.7;
   }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    transform: scaleX(1);
-    opacity: 0.9;
-  }
 }
 
-/* ✅ ANIMACIÓN DEL LOGO - Solo shadow, SIN afectar contenido */
-@keyframes logoShadowSweep {
+/* 6️⃣ VERSIÓN RAINBOW WAVE */
+.header-with-rainbow-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    #ef4444 0%,     /* Rojo */
+    #f59e0b 14%,    /* Naranja */
+    #eab308 28%,    /* Amarillo */
+    #10b981 42%,    /* Verde */
+    #3b82f6 57%,    /* Azul */
+    #6366f1 71%,    /* Índigo */
+    #7c3aed 85%,    /* Violeta */
+    #ef4444 100%    /* Rojo */
+  );
+  background-size: 300% 100%;
+  animation: rainbowSlide 6s linear infinite;
+}
+
+@keyframes rainbowSlide {
   0% {
-    box-shadow: 
-      0 8px 32px rgba(59, 130, 246, 0.3),
-      inset -20px -20px 0px rgba(255, 255, 255, 0);
-  }
-  15% {
-    box-shadow: 
-      0 8px 32px rgba(59, 130, 246, 0.4),
-      inset -15px -15px 0px rgba(255, 255, 255, 0.1);
-  }
-  30% {
-    box-shadow: 
-      0 8px 32px rgba(59, 130, 246, 0.5),
-      inset -10px -10px 0px rgba(255, 255, 255, 0.2);
-  }
-  45% {
-    box-shadow: 
-      0 8px 32px rgba(59, 130, 246, 0.6),
-      inset -5px -5px 0px rgba(255, 255, 255, 0.3);
-  }
-  60% {
-    box-shadow: 
-      0 8px 32px rgba(59, 130, 246, 0.7),
-      inset 0px 0px 0px rgba(255, 255, 255, 0.4);
-  }
-  75% {
-    box-shadow: 
-      0 8px 32px rgba(59, 130, 246, 0.6),
-      inset 5px 5px 0px rgba(255, 255, 255, 0.3);
-  }
-  90% {
-    box-shadow: 
-      0 8px 32px rgba(59, 130, 246, 0.4),
-      inset 10px 10px 0px rgba(255, 255, 255, 0.1);
+    background-position: 0% 50%;
   }
   100% {
-    box-shadow: 
-      0 8px 32px rgba(59, 130, 246, 0.3),
-      inset 20px 20px 0px rgba(255, 255, 255, 0);
+    background-position: 300% 50%;
   }
 }
 
-/* ✅ ANIMACIONES SUAVES PARA BOTONES - Sin afectar texto */
-@keyframes buttonPress {
+/* 7️⃣ LOADING BAR PROGRESIVA */
+.header-loading-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 30%;
+  background: linear-gradient(90deg, 
+    transparent,
+    #7c3aed,
+    #3b82f6,
+    transparent
+  );
+  animation: loadingMove 2s linear infinite;
+}
+
+@keyframes loadingMove {
   0% {
-    transform: scale(1);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  }
-  50% {
-    transform: scale(0.98);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    left: -30%;
   }
   100% {
-    transform: scale(1);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    left: 100%;
   }
-}
-
-/* ✅ ANIMACIÓN DE APARICIÓN SUAVE */
-@keyframes fadeInUp {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ✅ PULSO SUTIL - Solo para elementos específicos */
-@keyframes subtlePulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.9;
-    transform: scale(1.02);
-  }
-}
-
-/* ✅ SPIN MEJORADO */
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 
 /* ============================================ */
-/* 🎯 CLASES PARA APLICAR */
+/* 📱 RESPONSIVE - NO AFECTA EL LAYOUT */
 /* ============================================ */
 
-/* Botones interactivos - SIN texto animado */
-.interactive-button {
-  transition: all 0.2s ease;
-}
-
-.interactive-button:active {
-  animation: buttonPress 0.1s ease-out;
-}
-
-.interactive-button:hover {
-  transform: translateY(-1px);
-}
-
-/* Cards con hover suave */
-.animated-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.animated-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-/* Aparición suave de elementos */
-.fade-in-up {
-  animation: fadeInUp 0.6s ease-out forwards;
-}
-
-/* Pulso sutil - SOLO para indicadores de estado */
-.subtle-pulse {
-  animation: subtlePulse 2s ease-in-out infinite;
-}
-
-/* Spinner de carga */
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-/* ============================================ */
-/* 📱 RESPONSIVE - Reducir animaciones en móviles */
-/* ============================================ */
+/* En móviles, hacer la barra más delgada */
 @media (max-width: 768px) {
-  /* Reducir duración en móviles */
-  @keyframes logoShadowSweep {
-    0%, 100% {
-      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
-    }
-    50% {
-      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
-    }
+  .header-with-animated-bar::before,
+  .header-with-glow-bar::before,
+  .header-with-pulse-bar::after,
+  .header-with-rainbow-bar::before {
+    height: 2px; /* Más delgada en móvil */
   }
   
-  /* Hacer la barra más rápida en móvil */
-  @keyframes progressBarFill {
+  /* Reducir velocidad de animación en móvil para performance */
+  @keyframes slideGradient {
     0% {
-      transform: scaleX(0);
+      background-position: 0% 50%;
     }
     100% {
-      transform: scaleX(1);
+      background-position: 200% 50%;
     }
   }
 }
 
-/* Respetar preferencias de usuario */
+/* Tablet */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .header-with-animated-bar::before {
+    height: 2.5px;
+  }
+}
+
+/* ============================================ */
+/* 🎯 APLICACIÓN EN EL HEADER */
+/* ============================================ */
+
+/* Header base sin animación que rompa el layout */
+header.main-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(31, 41, 55, 0.95);
+  backdrop-filter: blur(12px);
+  /* NO usar transform o animation aquí */
+}
+
+/* Aplicar la barra animada */
+header.main-header.with-animated-bar {
+  position: relative;
+  overflow: hidden;
+}
+
+header.main-header.with-animated-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    #7c3aed 0%,
+    #3b82f6 50%,
+    #7c3aed 100%
+  );
+  background-size: 200% 100%;
+  animation: slideGradient 4s linear infinite;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* ============================================ */
+/* ⚡ PERFORMANCE - USAR GPU */
+/* ============================================ */
+
+.header-with-animated-bar::before,
+.header-with-glow-bar::before,
+.header-with-pulse-bar::after,
+.header-with-rainbow-bar::before {
+  will-change: transform, left, background-position;
+  transform: translateZ(0); /* Force GPU acceleration */
+}
+
+/* ============================================ */
+/* 🎨 VARIANTES ADICIONALES */
+/* ============================================ */
+
+/* Barra con partículas */
+.header-with-particles::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, #7c3aed, #3b82f6);
+  opacity: 0.8;
+}
+
+.header-with-particles::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -20px;
+  width: 20px;
+  height: 3px;
+  background: radial-gradient(circle, #fff, transparent);
+  animation: particleMove 3s linear infinite;
+}
+
+@keyframes particleMove {
+  0% {
+    left: -20px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+/* ============================================ */
+/* 🛡️ FALLBACKS Y SOPORTE */
+/* ============================================ */
+
+/* Para navegadores que no soportan backdrop-filter */
+@supports not (backdrop-filter: blur(12px)) {
+  .header-with-animated-bar {
+    background: rgba(31, 41, 55, 0.98);
+  }
+}
+
+/* Reducir animaciones si el usuario lo prefiere */
 @media (prefers-reduced-motion: reduce) {
-  @keyframes logoShadowSweep {
-    0%, 100% {
-      box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
-    }
-  }
-  
-  @keyframes progressBarFill {
-    0% { transform: scaleX(0); }
-    100% { transform: scaleX(1); }
-  }
-  
-  .subtle-pulse {
+  .header-with-animated-bar::before,
+  .header-with-glow-bar::before,
+  .header-with-pulse-bar::after,
+  .header-with-rainbow-bar::before {
     animation: none;
+    background: linear-gradient(90deg, #7c3aed, #3b82f6);
   }
 }
 
 /* ============================================ */
-/* 🔧 UTILIDADES DE DELAY */
+/* 🔧 UTILIDADES PARA DEBUGGING */
 /* ============================================ */
-.delay-1 { animation-delay: 0.1s; }
-.delay-2 { animation-delay: 0.2s; }
-.delay-3 { animation-delay: 0.3s; }
+
+/* Solo en desarrollo - ver límites */
+.debug-animated-bar .header-with-animated-bar::before {
+  outline: 1px solid red;
+}
+
+/* Test de z-index */
+.test-z-index::before {
+  z-index: 9999;
+  height: 10px; /* Más visible para testing */
+}

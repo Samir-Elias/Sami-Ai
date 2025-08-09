@@ -1,9 +1,10 @@
 // ============================================
-// 🌐 CONTEXTO PRINCIPAL UNIFICADO - DevAI Agent CORREGIDO
+// 🌐 CONTEXTO PRINCIPAL CORREGIDO - DevAI Agent
 // ============================================
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../config/api';
+import { constantsUtils, ERROR_MESSAGES, APP_CONFIG } from '../utils/constants';
 
 // Crear el contexto principal
 const AppContext = createContext();
@@ -28,12 +29,11 @@ export const AppProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('checking');
-  const [canUseOffline, setCanUseOffline] = useState(true); // ✅ Permitir uso offline
 
   // Estados de aplicación
-  const [currentProject, setCurrentProject] = useState('AI Dev Agent');
-  const [currentProvider, setCurrentProvider] = useState('gemini');
-  const [currentModel, setCurrentModel] = useState('gemini-1.5-flash');
+  const [currentProject, setCurrentProject] = useState(APP_CONFIG.name);
+  const [currentProvider, setCurrentProvider] = useState(APP_CONFIG.defaultProvider);
+  const [currentModel, setCurrentModel] = useState('gemini-1.5-flash-latest');
   
   // Estados de UI
   const [showSettings, setShowSettings] = useState(false);
@@ -45,90 +45,187 @@ export const AppProvider = ({ children }) => {
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
 
-  // ✅ Estado para modo degradado sin backend
+  // Estado para modo offline
   const [offlineMode, setOfflineMode] = useState(false);
 
   // ============================================
-  // 🔧 FUNCIONES DE API
+  // 🔧 FUNCIÓN PRINCIPAL DE API (ÚNICA)
   // ============================================
 
   /**
-   * Verificar conexión con backend (no bloquear si falla)
+   * Función centralizada para chat con IA - EVITA DUPLICACIÓN
    */
+  const chatWithAI = useCallback(async (messages, options = {}) => {
+    console.log('🎯 AppContext.chatWithAI called with:', messages.length, 'messages');
+    
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Validar mensajes
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        throw new Error(ERROR_MESSAGES.NO_MESSAGES);
+      }
+
+      // Limpiar mensajes
+      const cleanMessages = messages.filter(msg => msg?.role && msg?.content?.trim());
+      if (cleanMessages.length === 0) {
+        throw new Error(ERROR_MESSAGES.NO_MESSAGES);
+      }
+
+      console.log('📤 Enviando', cleanMessages.length, 'mensajes limpios');
+
+      let response;
+      
+      // ✅ OPCIÓN 1: Intentar backend primero
+      if (isBackendConnected) {
+        console.log('🔄 Usando backend conectado');
+        try {
+          response = await apiClient.chatWithAI(cleanMessages, {
+            provider: options.provider || currentProvider,
+            model: options.model || currentModel,
+            ...options
+          });
+          console.log('✅ Respuesta del backend:', response);
+        } catch (backendError) {
+          console.warn('⚠️ Backend falló, cambiando a API directa:', backendError.message);
+          // Fallback a API directa
+          response = await callDirectAPI(cleanMessages, options);
+        }
+      } else {
+        // ✅ OPCIÓN 2: API directa (sin backend)
+        console.log('🔄 Usando API directa (sin backend)');
+        response = await callDirectAPI(cleanMessages, options);
+      }
+
+      console.log('✅ Respuesta final:', response);
+      return response;
+
+    } catch (error) {
+      console.error('❌ Error en chatWithAI:', error);
+      const errorMsg = `Error: ${error.message}`;
+      setError(errorMsg);
+      
+      // ✅ Generar respuesta de fallback si todo falla
+      console.log('🔄 Generando respuesta de fallback');
+      const fallbackResponse = generateFallbackResponse(
+        cleanMessages[cleanMessages.length - 1]?.content || 'Error', 
+        options.provider || currentProvider
+      );
+      
+      return fallbackResponse;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isBackendConnected, currentProvider, currentModel]);
+
+  /**
+   * Llamada directa a API (importación dinámica para evitar problemas de inicialización)
+   */
+  const callDirectAPI = async (messages, options = {}) => {
+    const provider = options.provider || currentProvider;
+    const model = options.model || currentModel;
+    
+    console.log(`🏭 Llamando API directa: ${provider} con modelo ${model}`);
+
+    try {
+      // Importación dinámica del factory
+      const { callFreeAIAPI } = await import('../services/api/aiServiceFactory');
+      
+      // Obtener API key actual
+      const apiKey = localStorage.getItem(`api_key_${provider}`) || '';
+      
+      // Validar API key (excepto para Ollama)
+      if (!apiKey && provider !== 'ollama') {
+        throw new Error(ERROR_MESSAGES.NO_API_KEY(provider));
+      }
+
+      console.log(`🔑 Usando API key para ${provider}:`, apiKey ? '✅ Configurada' : '❌ Faltante');
+
+      // Llamar API
+      const response = await callFreeAIAPI(
+        messages,
+        apiKey,
+        provider,
+        model,
+        false // isMobile - se detecta automáticamente en el factory
+      );
+
+      return response;
+    } catch (error) {
+      console.error(`❌ Error en API directa (${provider}):`, error);
+      throw error;
+    }
+  };
+
+  /**
+   * Generar respuesta de fallback cuando todo falla
+   */
+  const generateFallbackResponse = (input, provider) => {
+    console.log('🆘 Generando respuesta de fallback para:', input.substring(0, 50) + '...');
+    
+    // Respuesta básica de fallback
+    return {
+      content: `Lo siento, no pude conectar con ${provider.toUpperCase()} en este momento. 
+
+**Posibles soluciones:**
+
+1. **Verifica tu API Key** - Ve a ⚙️ Configuración y asegúrate de que tu API Key esté configurada correctamente
+2. **Cambia de proveedor** - Prueba con otro proveedor disponible
+3. **Revisa tu conexión** - Verifica que tengas acceso a internet
+
+**Tu consulta era:** "${input}"
+
+Una vez solucionado el problema, puedes repetir tu pregunta y obtendré una respuesta completa.
+
+---
+*⚠️ Esta es una respuesta de fallback porque ${provider} no está disponible.*`,
+      usage: { total_tokens: 'N/A' },
+      model: 'fallback',
+      provider: 'sistema'
+    };
+  };
+
+  // ============================================
+  // 🔧 VERIFICACIÓN DE BACKEND (SIN BLOQUEAR)
+  // ============================================
+
   const checkBackendConnection = useCallback(async () => {
     setConnectionStatus('checking');
     setError(null);
     
     try {
       const health = await apiClient.checkHealth();
-      setIsBackendConnected(health.status === 'OK');
-      setConnectionStatus('connected');
-      setOfflineMode(false);
-      return true;
+      const isConnected = health.status === 'OK';
+      
+      setIsBackendConnected(isConnected);
+      setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+      setOfflineMode(!isConnected);
+      
+      if (isConnected) {
+        console.log('✅ Backend conectado');
+      } else {
+        console.log('🟡 Backend desconectado, usando modo API directa');
+      }
+      
+      return isConnected;
     } catch (err) {
       setIsBackendConnected(false);
       setConnectionStatus('disconnected');
-      setOfflineMode(true); // ✅ Activar modo offline
-      setError(err.message);
-      console.warn('🟡 Backend desconectado, usando modo offline:', err.message);
+      setOfflineMode(true);
+      setError(`Backend error: ${err.message}`);
+      console.warn('🔴 Backend no disponible:', err.message);
       return false;
     }
   }, []);
 
-  /**
-   * Métodos de API centralizados (con fallback offline)
-   */
+  // ============================================
+  // 🔧 OTROS MÉTODOS DE API
+  // ============================================
+
   const api = {
-    // Chat con IA (con fallback a API directa)
-    chatWithAI: async (messages, options = {}) => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // ✅ Intentar backend primero, luego API directa
-        if (isBackendConnected) {
-          const response = await apiClient.chatWithAI(messages, {
-            provider: options.provider || currentProvider,
-            model: options.model || currentModel,
-            ...options
-          });
-          return response;
-        } else {
-          // ✅ Fallback a API directa (importar el service factory)
-          const { callFreeAIAPI } = await import('../services/api/aiServiceFactory');
-          const { API_KEYS } = await import('../utils/constants');
-          
-          const provider = options.provider || currentProvider;
-          const apiKey = API_KEYS[provider];
-          
-          if (!apiKey && provider !== 'ollama') {
-            throw new Error(`Configura tu API Key para ${provider.toUpperCase()} en Settings`);
-          }
-          
-          const response = await callFreeAIAPI(
-            messages,
-            apiKey,
-            provider,
-            options.model || currentModel,
-            false // isMobile
-          );
-          
-          return response;
-        }
-      } catch (err) {
-        const errorMsg = `Chat Error: ${err.message}`;
-        setError(errorMsg);
-        
-        // ✅ Generar respuesta de fallback si todo falla
-        const { generateFallbackResponse } = await import('../services/api/aiServiceFactory');
-        const lastMessage = messages[messages.length - 1];
-        const fallbackResponse = generateFallbackResponse(lastMessage?.content || 'Error', currentProvider);
-        
-        return fallbackResponse;
-      } finally {
-        setIsLoading(false);
-      }
-    },
+    // ✅ Método principal - evita duplicación
+    chatWithAI,
 
     // Estado de IA
     getAIStatus: async () => {
@@ -137,25 +234,29 @@ export const AppProvider = ({ children }) => {
           const status = await apiClient.getAIStatus();
           return status;
         } else {
-          // ✅ Status offline
+          // Status offline basado en API keys locales
+          const availableProviders = constantsUtils.getAvailableProviders();
+          const providers = {};
+          
+          availableProviders.forEach(provider => {
+            providers[provider] = {
+              available: constantsUtils.isProviderAvailable(provider),
+              mode: 'direct_api'
+            };
+          });
+
           return {
             status: 'offline',
-            providers: {
-              [currentProvider]: {
-                available: !!localStorage.getItem(`api_key_${currentProvider}`),
-                mode: 'direct_api'
-              }
-            }
+            providers
           };
         }
       } catch (err) {
-        const errorMsg = `AI Status Error: ${err.message}`;
-        setError(errorMsg);
-        return { status: 'error', error: errorMsg };
+        setError(`AI Status Error: ${err.message}`);
+        return { status: 'error', error: err.message };
       }
     },
 
-    // Subir archivos (opcional si no hay backend)
+    // Subir archivos
     uploadFiles: async (files, projectName) => {
       if (isBackendConnected) {
         setIsLoading(true);
@@ -172,11 +273,11 @@ export const AppProvider = ({ children }) => {
       } else {
         // ✅ Procesar archivos localmente
         const { processFiles } = await import('../services/fileService');
-        return await processFiles(files, { maxFiles: 10 });
+        return await processFiles(files, { maxFiles: APP_CONFIG.maxFiles });
       }
     },
 
-    // Obtener conversaciones (local si no hay backend)
+    // Obtener conversaciones
     getConversations: async () => {
       try {
         if (isBackendConnected) {
@@ -192,11 +293,11 @@ export const AppProvider = ({ children }) => {
         }
       } catch (err) {
         console.warn('Error obteniendo conversaciones:', err.message);
-        return conversations; // Devolver las que ya tenemos
+        return conversations;
       }
     },
 
-    // Guardar conversación (local si no hay backend)
+    // Guardar conversación
     saveConversation: async (conversation) => {
       try {
         if (isBackendConnected) {
@@ -219,7 +320,7 @@ export const AppProvider = ({ children }) => {
           
           const updated = [conversationWithId, ...conversations.filter(c => c.id !== conversationWithId.id)];
           setConversations(updated);
-          localStorage.setItem('devai_conversations', JSON.stringify(updated.slice(0, 50)));
+          localStorage.setItem('devai_conversations', JSON.stringify(updated.slice(0, APP_CONFIG.maxConversations)));
           
           return conversationWithId;
         }
@@ -232,12 +333,12 @@ export const AppProvider = ({ children }) => {
     // Limpiar errores
     clearError: () => setError(null),
 
-    // Reconectar (intentar salir del modo offline)
+    // Reconectar
     reconnect: async () => {
       console.log('🔄 Intentando reconectar...');
       const connected = await checkBackendConnection();
       if (connected) {
-        await api.getConversations(); // Sincronizar conversaciones
+        await api.getConversations();
       }
       return connected;
     }
@@ -265,11 +366,13 @@ export const AppProvider = ({ children }) => {
 
   const conversation = {
     addMessage: (message) => {
-      setMessages(prev => [...prev, {
+      const newMessage = {
         ...message,
-        id: Date.now(),
-        timestamp: new Date()
-      }]);
+        id: message.id || Date.now(),
+        timestamp: message.timestamp || new Date()
+      };
+      setMessages(prev => [...prev, newMessage]);
+      return newMessage;
     },
 
     clearMessages: () => setMessages([]),
@@ -288,15 +391,13 @@ export const AppProvider = ({ children }) => {
   };
 
   // ============================================
-  // ⚙️ FUNCIONES DE CONFIGURACIÓN (sin restricciones)
+  // ⚙️ FUNCIONES DE CONFIGURACIÓN
   // ============================================
 
   const settings = {
     setProvider: (provider) => {
       console.log('🔄 Cambiando proveedor a:', provider);
       setCurrentProvider(provider);
-      
-      // ✅ Guardar configuración localmente
       localStorage.setItem('devai_provider', provider);
     },
     
@@ -311,10 +412,25 @@ export const AppProvider = ({ children }) => {
       localStorage.setItem('devai_project', project);
     },
     
-    // ✅ Nueva función para configurar API keys
+    // ✅ Configurar API keys
     setApiKey: (provider, apiKey) => {
+      console.log(`🔑 Configurando API Key para ${provider.toUpperCase()}`);
       localStorage.setItem(`api_key_${provider}`, apiKey);
-      console.log(`✅ API Key configurada para ${provider.toUpperCase()}`);
+      
+      // Limpiar errores previos al configurar nueva key
+      setError(null);
+    },
+
+    // ✅ Obtener API key actual
+    getApiKey: (provider) => {
+      return localStorage.getItem(`api_key_${provider}`) || '';
+    },
+
+    // ✅ Verificar si provider está configurado
+    isProviderConfigured: (provider) => {
+      if (provider === 'ollama') return true; // No necesita API key
+      const apiKey = localStorage.getItem(`api_key_${provider}`);
+      return !!apiKey && apiKey.length > 10;
     }
   };
 
@@ -323,19 +439,17 @@ export const AppProvider = ({ children }) => {
   // ============================================
 
   const computed = {
-    // Estado de conexión con texto legible
     connectionInfo: {
       text: connectionStatus === 'checking' ? '🔄 Verificando...' :
             isBackendConnected ? '🟢 Backend Conectado' : 
-            offlineMode ? '🟡 Modo Offline (API Directa)' :
-            `🔴 Backend Desconectado${error ? ` (${error})` : ''}`,
+            offlineMode ? '🟡 Modo API Directa' :
+            `🔴 Desconectado${error ? ` (${error})` : ''}`,
       isConnected: isBackendConnected,
-      canUseAPI: isBackendConnected || canUseOffline, // ✅ Permitir API directa
+      canUseAPI: true, // ✅ Siempre permitir uso (backend o API directa)
       status: connectionStatus,
       offlineMode
     },
 
-    // Información del proyecto
     projectInfo: {
       name: currentProject,
       messageCount: messages.length,
@@ -344,13 +458,22 @@ export const AppProvider = ({ children }) => {
       currentModel
     },
 
-    // Estado de UI
     uiState: {
       showSettings,
       showSidebar,
       showLivePreview,
       isLoading,
       hasError: !!error
+    },
+
+    // ✅ Estado de proveedores
+    providersInfo: {
+      current: currentProvider,
+      isCurrentConfigured: settings.isProviderConfigured(currentProvider),
+      available: constantsUtils.getAvailableProviders(),
+      configured: Object.keys(constantsUtils.getApiKeys()).filter(provider => 
+        constantsUtils.isProviderAvailable(provider)
+      )
     }
   };
 
@@ -364,7 +487,7 @@ export const AppProvider = ({ children }) => {
     isLoading,
     error,
     connectionStatus,
-    offlineMode, // ✅ Exponer modo offline
+    offlineMode,
     
     // Estados de aplicación
     currentProject,
@@ -391,10 +514,11 @@ export const AppProvider = ({ children }) => {
     settings,
     computed,
 
-    // Métodos directos más usados (para compatibilidad)
-    checkBackendConnection,
-    chatWithAI: api.chatWithAI,
-    reconnect: api.reconnect
+    // ✅ Método principal para compatibilidad
+    chatWithAI,
+    
+    // Otros métodos directos
+    checkBackendConnection
   };
 
   // ============================================
@@ -407,9 +531,15 @@ export const AppProvider = ({ children }) => {
     const savedModel = localStorage.getItem('devai_model');
     const savedProject = localStorage.getItem('devai_project');
     
-    if (savedProvider) setCurrentProvider(savedProvider);
-    if (savedModel) setCurrentModel(savedModel);
-    if (savedProject) setCurrentProject(savedProject);
+    if (savedProvider && constantsUtils.getAvailableProviders().includes(savedProvider)) {
+      setCurrentProvider(savedProvider);
+    }
+    if (savedModel) {
+      setCurrentModel(savedModel);
+    }
+    if (savedProject) {
+      setCurrentProject(savedProject);
+    }
   }, []);
 
   // Verificar conexión al iniciar (no bloquear)
@@ -421,7 +551,7 @@ export const AppProvider = ({ children }) => {
       if (!isBackendConnected) {
         checkBackendConnection();
       }
-    }, 30000);
+    }, APP_CONFIG.connectionCheckInterval);
     
     return () => clearInterval(interval);
   }, [checkBackendConnection, isBackendConnected]);
@@ -429,7 +559,7 @@ export const AppProvider = ({ children }) => {
   // Cargar conversaciones al conectar o al iniciar
   useEffect(() => {
     api.getConversations();
-  }, [isBackendConnected]); // Cargar tanto online como offline
+  }, [isBackendConnected]);
 
   return (
     <AppContext.Provider value={contextValue}>
@@ -439,12 +569,9 @@ export const AppProvider = ({ children }) => {
 };
 
 // ============================================
-// 🎣 HOOKS ESPECIALIZADOS (actualizados)
+// 🎣 HOOKS ESPECIALIZADOS
 // ============================================
 
-/**
- * Hook para estado de conexión del backend
- */
 export const useBackendStatus = () => {
   const { computed, api, offlineMode } = useApp();
   return {
@@ -454,22 +581,16 @@ export const useBackendStatus = () => {
   };
 };
 
-/**
- * Hook para métodos de API
- */
 export const useAPI = () => {
   const { api, isLoading, error, offlineMode } = useApp();
   return {
-    api,
+    ...api,
     isLoading,
     error,
     offlineMode
   };
 };
 
-/**
- * Hook para manejo de conversaciones
- */
 export const useConversations = () => {
   const { conversation, messages, conversations, currentConversationId } = useApp();
   return {
@@ -480,25 +601,17 @@ export const useConversations = () => {
   };
 };
 
-/**
- * Hook para configuraciones (sin restricciones)
- */
 export const useSettings = () => {
-  const { settings, currentProvider, currentModel, currentProject, ui } = useApp();
+  const { settings, computed, ui } = useApp();
   return {
-    currentProvider,
-    currentModel,
-    currentProject,
     ...settings,
+    ...computed.providersInfo,
     toggleSettings: ui.toggleSettings,
     openSettings: ui.openSettings,
     closeSettings: ui.closeSettings
   };
 };
 
-/**
- * Hook para UI state
- */
 export const useUI = () => {
   const { ui, computed } = useApp();
   return {

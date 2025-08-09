@@ -1,0 +1,9 @@
+/*    /index.html   200
+
+# Cache static assets
+/static/*  /static/:splat  200  Cache-Control: max-age=31536000
+
+# Security headers
+/*  /  200  X-Frame-Options: DENY
+/*  /  200  X-Content-Type-Options: nosniff
+/*  /  200  Referrer-Policy: strict-origin-when-cross-origin
