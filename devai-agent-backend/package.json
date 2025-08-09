@@ -5,8 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "build": "node scripts/build.js",
+    "start": "NODE_OPTIONS='--max-old-space-size=450' node src/server.js",
+    "build": "NODE_OPTIONS='--max-old-space-size=450' node scripts/build.js",
+    "build:production": "npm ci --only=production && NODE_OPTIONS='--max-old-space-size=450' npx prisma generate",
     "build:windows": "node scripts/build-windows.js",
     "build:simple": "npm install && mkdir -p uploads logs temp",
     "prebuild": "npm install",
@@ -15,7 +16,7 @@
     "clean:hard": "taskkill /f /im node.exe /t && rmdir /s /q node_modules && del package-lock.json && npm cache clean --force",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:generate": "prisma generate",
+    "db:generate": "NODE_OPTIONS='--max-old-space-size=450' prisma generate",
     "db:seed": "node src/database/seed.js",
     "db:reset": "prisma migrate reset --force",
     "db:push": "prisma db push",
@@ -28,11 +29,11 @@
     "docker:down": "docker-compose down",
     "clean": "rimraf node_modules dist logs uploads/temp",
     "setup": "npm install && npx prisma generate && npm run build",
-    "health": "node -e \"console.log('Health check:', require('http').get('http://localhost:3001/health'))\""
+    "health": "node -e \"console.log('Health check:', require('http').get('http://localhost:5000/health'))\""
   },
   "keywords": [
     "ai",
-    "development",
+    "development", 
     "assistant",
     "chat",
     "api",
