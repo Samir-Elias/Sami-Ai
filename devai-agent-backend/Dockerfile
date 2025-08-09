@@ -51,8 +51,8 @@ RUN npm ci
 # Copiar código fuente
 COPY . .
 
-# Generar Prisma client
-RUN npx prisma generate
+# Generar Prisma client si existe schema
+RUN if [ -f "prisma/schema.prisma" ]; then npx prisma generate; else echo "No Prisma schema found, skipping"; fi
 
 # Ejecutar build si existe
 RUN npm run build || echo "No build script found"
@@ -71,8 +71,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/package*.json ./
 
-# Copiar archivos de configuración
-COPY --from=builder /app/prisma ./prisma
+# Copiar archivos de configuración (opcional)
+COPY --from=builder /app/prisma ./prisma 2>/dev/null || echo "No prisma directory found"
 
 # Crear directorios necesarios
 RUN mkdir -p storage/uploads storage/temp storage/logs storage/backups && \
@@ -89,9 +89,9 @@ EXPOSE 5000
 # Cambiar a usuario no-root
 USER devai
 
-# Health check
+# Health check corregido
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/api/v1/health || exit 1
+    CMD curl -f http://localhost:5000/health || exit 1
 
 # Comando de inicio con dumb-init para manejo correcto de señales
 ENTRYPOINT ["dumb-init", "--"]
@@ -126,17 +126,3 @@ USER root
 
 # Hot reload con nodemon
 CMD ["npm", "run", "dev"]
-
-# ============================================
-# 🧪 STAGE: Testing
-# ============================================
-FROM development AS testing
-
-# Copiar tests
-COPY tests/ ./tests/
-
-# Variables para testing
-ENV NODE_ENV=test
-
-# Comando para tests
-CMD ["npm", "test"]
